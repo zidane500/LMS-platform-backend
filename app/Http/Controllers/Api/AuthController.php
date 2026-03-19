@@ -9,6 +9,8 @@ use Illuminate\Auth\Events\PasswordReset;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Password;
+use Illuminate\Support\Facades\DB;      
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 use Illuminate\Validation\Rules\Password as PasswordRule;
@@ -103,26 +105,31 @@ class AuthController extends Controller
     // ─── MOT DE PASSE OUBLIÉ ──────────────────────────────
     // Envoie un email avec un lien de réinitialisation
     public function forgotPassword(Request $request)
-    {
-        $request->validate([
-            'email' => 'required|email|exists:users,email',
-        ]);
+{
+    $request->validate([
+        'email' => 'required|email|exists:users,email',
+    ]);
 
-        // Laravel envoie automatiquement l'email (ou le logue si MAIL_MAILER=log)
-        $status = Password::sendResetLink(
-            $request->only('email')
-        );
+    // Génère et sauvegarde le token dans password_reset_tokens
+    $token = \Illuminate\Support\Str::random(64);
 
-        if ($status === Password::RESET_LINK_SENT) {
-            return response()->json([
-                'message' => 'Un email de réinitialisation a été envoyé.',
-            ]);
-        }
+    DB::table('password_reset_tokens')->updateOrInsert(
+        ['email' => $request->email],
+        [
+            'token'      => bcrypt($token),
+            'created_at' => now(),
+        ]
+    );
 
-        return response()->json([
-            'message' => 'Impossible d\'envoyer l\'email. Vérifiez l\'adresse.',
-        ], 400);
-    }
+    // En mode développement → le lien est dans storage/logs/laravel.log
+    Log::info('=== RESET PASSWORD LINK ===');
+    Log::info('http://localhost:5173/reset-password?token=' . $token . '&email=' . urlencode($request->email));
+    Log::info('===========================');
+
+    return response()->json([
+        'message' => 'Un email de réinitialisation a été envoyé.',
+    ]);
+}
 
     // ─── RÉINITIALISER LE MOT DE PASSE ────────────────────
     // Reçoit le token + nouveau mot de passe

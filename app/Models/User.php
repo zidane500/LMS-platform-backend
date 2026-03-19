@@ -4,8 +4,8 @@ namespace App\Models;
 
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
-use Illuminate\Auth\Notifications\ResetPassword;
 use Laravel\Sanctum\HasApiTokens;
+use Illuminate\Auth\Notifications\ResetPassword;
 
 class User extends Authenticatable
 {
@@ -35,33 +35,51 @@ class User extends Authenticatable
         'date_naissance'    => 'date',
     ];
 
+    // Nécessaire pour Laravel Auth (champ non standard)
     public function getAuthPassword(): string
     {
         return $this->mot_de_passe;
     }
 
+    // Nécessaire pour le Password Broker (réinitialisation)
     public function getAuthPasswordName(): string
     {
         return 'mot_de_passe';
     }
 
+
+    public function sendPasswordResetNotification($token): void
+    {
+        $url = 'http://localhost:5173/reset-password?token=' . $token . '&email=' . urlencode($this->email);
+
+        $this->notify(new ResetPassword($token));
+    }
+
+    // Relations
     public function apprenant()
     {
         return $this->hasOne(Apprenant::class);
     }
 
-    /**
-     * Cette méthode dit à Laravel :
-     * "Pour le lien de réinitialisation, utilise l'URL du frontend React
-     *  au lieu de chercher une route Laravel qui n'existe pas."
-     */
-    public function sendPasswordResetNotification($token): void
+    public function formateur()
     {
-        $frontendUrl = config('app.frontend_url', 'http://localhost:5173');
-        $url = $frontendUrl . '/reset-password?token=' . $token . '&email=' . urlencode($this->email);
+        return $this->hasOne(Formateur::class);
+    }
 
-        ResetPassword::createUrlUsing(fn() => $url);
+    public function demandeFormateur()
+    {
+        return $this->hasOne(DemandeFormateur::class);
+    }
 
-        $this->notify(new ResetPassword($token));
+    // Formations créées par cet utilisateur (en tant que formateur)
+    public function formations()
+    {
+        return $this->hasMany(Formation::class, 'formateur_id');
+    }
+
+    // Inscriptions de cet utilisateur (en tant qu'apprenant)
+    public function inscriptions()
+    {
+        return $this->hasMany(Inscription::class);
     }
 }

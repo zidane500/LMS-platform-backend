@@ -4,24 +4,34 @@ use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 
+// Cette migration AJOUTE les colonnes manquantes à la table inscriptions
 return new class extends Migration
 {
-    /**
-     * Run the migrations.
-     */
     public function up(): void
     {
-        Schema::create('inscriptions', function (Blueprint $table) {
-            $table->id();
-            $table->timestamps();
+        Schema::table('inscriptions', function (Blueprint $table) {
+            $table->foreignId('user_id')
+                  ->constrained('users')
+                  ->onDelete('cascade');
+
+            $table->foreignId('formation_id')
+                  ->constrained('formations')
+                  ->onDelete('cascade');
+
+            $table->timestamp('date_inscription')->useCurrent();
+
+            // Un apprenant ne peut pas s'inscrire deux fois à la même formation
+            $table->unique(['user_id', 'formation_id']);
         });
     }
 
-    /**
-     * Reverse the migrations.
-     */
     public function down(): void
     {
-        Schema::dropIfExists('inscriptions');
+        Schema::table('inscriptions', function (Blueprint $table) {
+            $table->dropUnique(['user_id', 'formation_id']);
+            $table->dropForeign(['user_id']);
+            $table->dropForeign(['formation_id']);
+            $table->dropColumn(['user_id', 'formation_id', 'date_inscription']);
+        });
     }
 };
