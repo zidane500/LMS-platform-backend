@@ -7,73 +7,103 @@ use App\Models\Formation;
 use App\Models\ModuleFormation;
 use App\Models\Inscription;
 use App\Models\User;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Http\Request;
 
 class FormationController extends Controller
 {
     // ─── US 2.3 : Lister et filtrer les formations ────────
     public function index(Request $request)
-    {
-        $query = Formation::with(['formateur', 'modules']);
+{
+    $query = Formation::with(['formateur', 'modules']);
 
-        // Filtre par statut (par défaut : formations publiées seulement)
-        // Les admins/formateurs voient aussi leurs brouillons
-        $user = $request->user();
-        if ($user && in_array($user->role, ['admin', 'formateur'])) {
-            if ($request->statut) {
-                $query->where('statut', $request->statut);
-            }
-            // Le formateur ne voit que ses propres formations si filtre 'mine'
-            if ($request->mine === 'true' && $user->role === 'formateur') {
+    $user = auth('sanctum')->user();
+
+    if ($user && in_array($user->role, ['admin', 'formateur'])) {
+        // Brouillons séparés des publiés
+        if ($request->statut === 'brouillon') {
+            $query->where('statut', 'brouillon');
+            // Formateur voit SEULEMENT ses propres brouillons
+            if ($user->role === 'formateur') {
                 $query->where('formateur_id', $user->id);
             }
         } else {
-            // Les apprenants ne voient que les formations publiées
+            // Par défaut : seulement les publiés
             $query->where('statut', 'publie');
         }
 
-        // Recherche par titre ou description
-        if ($request->search) {
-            $search = $request->search;
-            $query->where(function ($q) use ($search) {
-                $q->where('titre', 'ilike', "%$search%")
-                  ->orWhere('description', 'ilike', "%$search%");
-            });
+        if ($request->mine === 'true') {
+            $query->where('formateur_id', $user->id);
         }
-
-        // Filtre par catégorie
-        if ($request->categorie && $request->categorie !== 'all') {
-            $query->where('categorie', $request->categorie);
-        }
-
-        // Filtre par niveau
-        if ($request->niveau && $request->niveau !== 'all') {
-            $query->where('niveau', $request->niveau);
-        }
-
-        $formations = $query->orderBy('created_at', 'desc')->get();
-
-        // Pour chaque formation, vérifier si l'utilisateur est inscrit
-        $inscriptions = [];
-        if ($user) {
-            $inscriptions = Inscription::where('user_id', $user->id)
-                ->pluck('formation_id')
-                ->toArray();
-        }
-
-        return response()->json(
-            $formations->map(fn($f) => $this->formatFormation($f, $inscriptions))
-        );
+    } else {
+        // Apprenants / visiteurs : uniquement publiés
+        $query->where('statut', 'publie');
     }
 
+    if ($request->search) {
+        $search = $request->search;
+        $query->where(function ($q) use ($search) {
+            $q->where('titre', 'ilike', "%$search%")
+              ->orWhere('description', 'ilike', "%$search%");
+        });
+    }
+
+    if ($request->categorie && $request->categorie !== 'all') {
+        $query->where('categorie', $request->categorie);
+    }
+
+    if ($request->niveau && $request->niveau !== 'all') {
+        $query->where('niveau', $request->niveau);
+    }
+
+    // ── Nouveau : filtre par formateur ──
+    if ($request->formateur_id && $request->formateur_id !== 'all') {
+        $query->where('formateur_id', $request->formateur_id);
+    }
+
+    $formations = $query->orderBy('created_at', 'desc')->get();
+
+    $inscriptions = [];
+    if ($user) {
+        $inscriptions = Inscription::where('user_id', $user->id)
+            ->pluck('formation_id')
+            ->toArray();
+    }
+
+    return response()->json(
+        $formations->map(fn($f) => $this->formatFormation($f, $inscriptions))
+    );
+}
+
+// ─── Récupérer les formateurs ayant des formations publiées ──
+public function instructors()
+{
+    $instructors = User::whereHas('formations', function ($q) {
+        $q->where('statut', 'publie');
+    })
+    ->get(['id', 'prenom', 'nom'])
+    ->map(fn($u) => [
+        'id'     => (string) $u->id,
+        'prenom' => $u->prenom,
+        'nom'    => $u->nom,
+    ]);
+
+    return response()->json($instructors);
+}
+
+
     // ─── US 2.4 : Détail d'une formation ──────────────────
+    // ✅ FIX : utilise auth('sanctum') au lieu de $request->user()
+    // pour que est_inscrit soit correct même sur route publique
     public function show(Request $request, $id)
     {
         $formation = Formation::with(['formateur', 'modules'])->findOrFail($id);
 
+        $user = auth('sanctum')->user(); // ← FIX ICI
+
         $inscriptions = [];
-        if ($request->user()) {
-            $inscriptions = Inscription::where('user_id', $request->user()->id)
+        if ($user) {
+            $inscriptions = Inscription::where('user_id', $user->id)
                 ->pluck('formation_id')
                 ->toArray();
         }
@@ -83,32 +113,49 @@ class FormationController extends Controller
 
     // ─── US 2.1 : Créer une formation ─────────────────────
     public function store(Request $request)
-    {
-        $user = $request->user();
-        $this->authorize_instructor_or_admin($user);
+{
+    $user = $request->user();
 
-        $validated = $request->validate([
-            'titre'         => 'required|string|max:255',
-            'description'   => 'required|string',
-            'categorie'     => 'required|string|max:100',
-            'niveau'        => 'required|in:debutant,intermediaire,avance',
-            'duree_estimee' => 'required|integer|min:1',
-            'prerequis'     => 'nullable|array',
-            'miniature'     => 'nullable|string|max:500',
-            'statut'        => 'nullable|in:brouillon,publie',
-        ]);
+    $validated = $request->validate([
+        'titre' => 'required|string|max:255',
+        'description' => 'required|string',
+        'categorie' => 'required|string|max:100',
+        'niveau' => 'required|in:debutant,intermediaire,avance',
+        'duree_estimee' => 'required|integer|min:1',
+        'prerequis' => 'nullable|array',
+        'miniature_fichier' => 'nullable|image|max:5120',
+        'statut' => 'nullable|in:brouillon,publie',
+    ]);
 
-        $formation = Formation::create([
-            ...$validated,
-            'formateur_id' => $user->id,
-            'statut'       => $validated['statut'] ?? 'brouillon',
-        ]);
+    $miniatureUrl = null;
 
-        return response()->json([
-            'message'   => 'Formation créée avec succès',
-            'formation' => $this->formatFormation($formation->load('formateur', 'modules'), []),
-        ], 201);
+    // ✅ Upload image
+    if ($request->hasFile('miniature_fichier')) {
+        $file = $request->file('miniature_fichier');
+
+        $chemin = $file->store('formations/miniatures', 'public');
+
+        $miniatureUrl = asset('storage/' . $chemin);
     }
+
+    // ✅ IMPORTANT : ne pas utiliser ...$validated directement
+    $formation = Formation::create([
+        'titre' => $validated['titre'],
+        'description' => $validated['description'],
+        'categorie' => $validated['categorie'],
+        'niveau' => $validated['niveau'],
+        'duree_estimee' => $validated['duree_estimee'],
+        'prerequis' => $validated['prerequis'] ?? [],
+        'miniature' => $miniatureUrl, // ✅ ICI
+        'statut' => $validated['statut'] ?? 'brouillon',
+        'formateur_id' => $user->id,
+    ]);
+
+    return response()->json([
+        'message' => 'Formation créée avec succès',
+        'formation' => $formation,
+    ], 201);
+}
 
     // ─── US 2.1 (modifier) : Mettre à jour une formation ──
     public function update(Request $request, $id)
@@ -116,7 +163,6 @@ class FormationController extends Controller
         $user = $request->user();
         $formation = Formation::findOrFail($id);
 
-        // Seul le formateur propriétaire ou un admin peut modifier
         $this->authorize_owner_or_admin($user, $formation);
 
         $validated = $request->validate([
@@ -127,8 +173,20 @@ class FormationController extends Controller
             'duree_estimee' => 'sometimes|required|integer|min:1',
             'prerequis'     => 'nullable|array',
             'miniature'     => 'nullable|string|max:500',
+            'miniature_fichier'=> 'nullable|image|max:5120',
             'statut'        => 'sometimes|required|in:brouillon,publie',
         ]);
+
+        if ($request->hasFile('miniature_fichier')) {
+    // Supprimer l'ancienne miniature si c'était un fichier uploadé
+    if ($formation->miniature && str_contains($formation->miniature, '/storage/formations/')) {
+        $ancienChemin = str_replace(asset('storage/'), '', $formation->miniature);
+        Storage::disk('public')->delete($ancienChemin);
+    }
+    $chemin = $request->file('miniature_fichier')
+        ->store('formations/miniatures', 'public');
+    $validated['miniature'] = asset('storage/' . $chemin);
+}
 
         $formation->update($validated);
 
@@ -146,15 +204,11 @@ class FormationController extends Controller
 
         $this->authorize_owner_or_admin($user, $formation);
 
-        // Récupérer les IDs des apprenants inscrits avant suppression
-        // (pour notification - pour l'instant on les retourne juste)
         $nbInscrits = $formation->inscriptions()->count();
-
-        // La suppression cascade grâce aux FK (supprime modules + inscriptions)
         $formation->delete();
 
         return response()->json([
-            'message'    => 'Formation supprimée avec succès',
+            'message'     => 'Formation supprimée avec succès',
             'nb_inscrits' => $nbInscrits,
         ]);
     }
@@ -174,7 +228,6 @@ class FormationController extends Controller
             return response()->json(['message' => 'Cette formation n\'est pas disponible.'], 400);
         }
 
-        // Vérifier si déjà inscrit
         $already = Inscription::where('user_id', $user->id)
                               ->where('formation_id', $id)
                               ->exists();
