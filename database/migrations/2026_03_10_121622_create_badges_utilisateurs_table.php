@@ -9,19 +9,20 @@ return new class extends Migration
     /**
      * Run the migrations.
      */
-    public function up(): void
-    {
-        Schema::create('badges_utilisateurs', function (Blueprint $table) {
-            $table->id();
-            $table->timestamps();
-        });
-    }
-
-    /**
-     * Reverse the migrations.
-     */
-    public function down(): void
-    {
-        Schema::dropIfExists('badges_utilisateurs');
-    }
+   public function up(): void
+{
+    Schema::create('badges_utilisateurs', function (Blueprint $table) {
+        $table->id();
+        $table->foreignId('user_id')->constrained('users')->onDelete('cascade');
+        $table->foreignId('badge_id')->constrained('badges')->onDelete('cascade');
+        $table->foreignId('formation_id')->nullable()->constrained('formations')->onDelete('cascade');
+        $table->timestamp('obtenu_le')->nullable();
+        $table->timestamps();
+        $table->unique(['user_id', 'badge_id', 'formation_id']);
+    });
+}
+public function down(): void 
+{
+     Schema::dropIfExists('badges_utilisateurs'); 
+     }
 };

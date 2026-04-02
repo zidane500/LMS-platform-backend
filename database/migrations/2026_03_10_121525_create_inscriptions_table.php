@@ -9,7 +9,8 @@ return new class extends Migration
 {
     public function up(): void
     {
-        Schema::table('inscriptions', function (Blueprint $table) {
+        Schema::create('inscriptions', function (Blueprint $table) {
+            $table->id();
             $table->foreignId('user_id')
                   ->constrained('users')
                   ->onDelete('cascade');
@@ -26,12 +27,7 @@ return new class extends Migration
     }
 
     public function down(): void
-    {
-        Schema::table('inscriptions', function (Blueprint $table) {
-            $table->dropUnique(['user_id', 'formation_id']);
-            $table->dropForeign(['user_id']);
-            $table->dropForeign(['formation_id']);
-            $table->dropColumn(['user_id', 'formation_id', 'date_inscription']);
-        });
-    }
+{
+    Schema::dropIfExists('inscriptions');
+}
 };

@@ -35,4 +35,9 @@ return [
         ],
     ],
 
+    'ollama' => [
+    'api_key' => env('OLLAMA_API_KEY'),
+    'base_url' => env('OLLAMA_BASE_URL', 'https://ollama.com/api'),
+    'model' => env('OLLAMA_MODEL', 'glm-5:cloud'),
+],
 ];

@@ -9,7 +9,8 @@ return new class extends Migration
 {
     public function up(): void
     {
-        Schema::table('progression_contenus', function (Blueprint $table) {
+        Schema::create('progression_contenus', function (Blueprint $table) {
+            $table->id();
             $table->foreignId('user_id')
                   ->constrained('users')
                   ->onDelete('cascade');
@@ -24,12 +25,7 @@ return new class extends Migration
     }
 
     public function down(): void
-    {
-        Schema::table('progression_contenus', function (Blueprint $table) {
-            $table->dropUnique(['user_id', 'contenu_id']);
-            $table->dropForeign(['user_id']);
-            $table->dropForeign(['contenu_id']);
-            $table->dropColumn(['user_id','contenu_id','complete','pourcentage','derniere_consultation']);
-        });
-    }
+{
+    Schema::dropIfExists('progression_contenus');
+}
 };

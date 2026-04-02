@@ -12,8 +12,12 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('choix_reponses', function (Blueprint $table) {
-            $table->id();
-            $table->timestamps();
+        $table->id();
+        $table->foreignId('question_id')->constrained('questions')->onDelete('cascade');
+        $table->text('texte');
+        $table->boolean('est_correct')->default(false);
+        $table->integer('ordre')->default(1);
+        $table->timestamps();
         });
     }
 

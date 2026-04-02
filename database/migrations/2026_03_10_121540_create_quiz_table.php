@@ -12,8 +12,15 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('quiz', function (Blueprint $table) {
-            $table->id();
-            $table->timestamps();
+        $table->id();
+        $table->foreignId('module_id')->constrained('modules')->onDelete('cascade');
+        $table->string('titre');
+        $table->text('description')->nullable();
+        $table->integer('seuil_reussite')->default(70);
+        $table->integer('duree_minutes')->nullable();
+        $table->integer('nb_tentatives_max')->default(3);
+        $table->string('statut')->default('actif');
+        $table->timestamps();
         });
     }
 

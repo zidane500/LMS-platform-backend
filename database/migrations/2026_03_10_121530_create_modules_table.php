@@ -9,7 +9,9 @@ return new class extends Migration
 {
     public function up(): void
     {
-        Schema::table('modules', function (Blueprint $table) {
+       
+        Schema::create('modules', function (Blueprint $table) {
+            $table->id();
             $table->foreignId('formation_id')
                   ->constrained('formations')
                   ->onDelete('cascade');
@@ -18,14 +20,12 @@ return new class extends Migration
             $table->text('description')->nullable();
             $table->unsignedSmallInteger('duree')->default(0);
             $table->unsignedSmallInteger('ordre')->default(0);
+            $table->timestamps();
         });
     }
 
     public function down(): void
-    {
-        Schema::table('modules', function (Blueprint $table) {
-            $table->dropForeign(['formation_id']);
-            $table->dropColumn(['formation_id', 'titre', 'description', 'duree', 'ordre']);
-        });
-    }
+{
+    Schema::dropIfExists('modules');
+}
 };

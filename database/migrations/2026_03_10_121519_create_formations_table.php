@@ -10,7 +10,9 @@ return new class extends Migration
 {
     public function up(): void
     {
-        Schema::table('formations', function (Blueprint $table) {
+        Schema::create('formations', function (Blueprint $table) {
+            $table->id();
+            $table->timestamps();
             $table->foreignId('formateur_id')
                   ->nullable()
                   ->constrained('users')
@@ -27,14 +29,13 @@ return new class extends Migration
         });
     }
 
-    public function down(): void
-    {
-        Schema::table('formations', function (Blueprint $table) {
-            $table->dropForeign(['formateur_id']);
-            $table->dropColumn([
-                'formateur_id', 'titre', 'description', 'categorie',
-                'niveau', 'duree_estimee', 'prerequis', 'miniature', 'statut',
-            ]);
-        });
-    }
+     public function down(): void
+{
+    Schema::dropIfExists('formations');
+}
 };
+
+
+/*
+
+*/

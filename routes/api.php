@@ -6,7 +6,12 @@ use App\Http\Controllers\Api\InstructorRequestController;
 use App\Http\Controllers\Api\FormationController;
 use App\Http\Controllers\Api\ModuleController;
 use App\Http\Controllers\Api\ContenuController;
+use App\Http\Controllers\Api\QuizController;
+use App\Http\Controllers\Api\ProgressionController;
+use App\Services\GlmCorrectionService;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
+
 
 // ═══════════════════════════════════════════════════════════
 //  ROUTES PUBLIQUES
@@ -27,6 +32,11 @@ Route::get('/formations/{id}',       [FormationController::class, 'show']);
 // Contenus publics (avec progression si connecté)
 Route::get('/formations/{formationId}/modules/{moduleId}/contenus',
     [ContenuController::class, 'index']);
+
+
+
+
+    
 
 // ═══════════════════════════════════════════════════════════
 //  ROUTES PROTÉGÉES
@@ -77,7 +87,57 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/{contenuId}/consulter', [ContenuController::class, 'marquerConsulte']);
     });
 
+    // ── EPIC 4 : Quiz ──────────────────────────────────────
+    Route::prefix('formations/{formationId}/modules/{moduleId}/quiz')->group(function () {
+        Route::get('/',              [QuizController::class, 'show']);       // Récupérer
+        Route::post('/',             [QuizController::class, 'store']);      // Créer
+        Route::put('/{quizId}',      [QuizController::class, 'update']);     // Modifier
+        Route::delete('/{quizId}',   [QuizController::class, 'destroy']);    // Supprimer
+        Route::post('/{quizId}/passer', [QuizController::class, 'passer']); // Passer
+        
+    });
+
+    // EPIC 5 : Progression et Badges
+    Route::prefix('progression')->group(function () {
+    Route::get('/',                        [ProgressionController::class, 'index']);
+    Route::get('/{formationId}',           [ProgressionController::class, 'show']);
+    Route::get('/{formationId}/formateur', [ProgressionController::class, 'formateur']);
 });
+
+});
+
+
+
+Route::post('/test-glm-correction', function (Request $request, GlmCorrectionService $glm) {
+    $data = $request->validate([
+        'question' => ['required', 'string'],
+        'reponse' => ['required', 'string'],
+        'correction_attendue' => ['nullable', 'string'],
+        'contexte' => ['nullable', 'string'],
+        'points_max' => ['nullable', 'integer'],
+    ]);
+
+    return response()->json(
+        $glm->corrigerReponseLibre(
+            $data['question'],
+            $data['reponse'],
+            $data['correction_attendue'] ?? null,
+            $data['contexte'] ?? '',
+            $data['points_max'] ?? 10
+        )
+    );
+});
+Route::get('/test-ollama-config', function () {
+    return response()->json([
+        'base_url' => config('services.ollama.base_url'),
+        'model' => config('services.ollama.model'),
+        'has_api_key' => !empty(config('services.ollama.api_key')),
+        'api_key_prefix' => substr(config('services.ollama.api_key'), 0, 8),
+    ]);
+});
+
+
+
 
 
     // ── Route de streaming vidéo avec Range support ──────────

@@ -11,10 +11,18 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('progression_formations', function (Blueprint $table) {
-            $table->id();
-            $table->timestamps();
-        });
+         Schema::create('progression_formations', function (Blueprint $table) {
+        $table->id();
+        $table->foreignId('user_id')->constrained('users')->onDelete('cascade');
+        $table->foreignId('formation_id')->constrained('formations')->onDelete('cascade');
+        $table->integer('pourcentage_global')->default(0);
+        $table->integer('modules_completes')->default(0);
+        $table->integer('contenus_completes')->default(0);
+        $table->boolean('complete')->default(false);
+        $table->timestamp('termine_le')->nullable();
+        $table->timestamps();
+        $table->unique(['user_id', 'formation_id']);
+    });
     }
 
     /**

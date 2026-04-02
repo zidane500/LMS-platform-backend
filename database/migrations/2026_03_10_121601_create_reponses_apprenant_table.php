@@ -12,8 +12,18 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('reponses_apprenant', function (Blueprint $table) {
-            $table->id();
-            $table->timestamps();
+        $table->id();
+        $table->foreignId('tentative_id')->constrained('tentatives_quiz')->onDelete('cascade');
+        $table->foreignId('question_id')->constrained('questions')->onDelete('cascade');
+        $table->foreignId('choix_id')->nullable()->constrained('choix_reponses')->onDelete('set null');
+        $table->text('reponse_texte')->nullable();
+        $table->boolean('est_correct')->default(false);
+        $table->integer('score_ia')->nullable()->after('est_correct');
+        $table->text('feedback_ia')->nullable()->after('score_ia');
+        $table->text('points_forts')->nullable()->after('feedback_ia');
+        $table->text('points_amelioration')->nullable()->after('points_forts');
+        $table->integer('points_obtenus')->default(0)->after('points_amelioration');
+        $table->timestamps();
         });
     }
 

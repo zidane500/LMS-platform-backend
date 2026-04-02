@@ -190,7 +190,9 @@ public function resetPassword(Request $request)
             'role'            => $user->role,
             'telephone'       => $user->telephone,
             'date_naissance'  => $user->date_naissance?->format('Y-m-d'),
-            'photo_profil'    => $user->photo_profil,
+            'photo_profil' => $user->photo_profil
+            ? asset('storage/' . $user->photo_profil)
+            : null,
             'langue_preferee' => $user->langue_preferee,
             'domaines_cibles' => $apprenant?->domaines_cibles ?? [],
             'technologies'    => $apprenant?->technologies ?? [],

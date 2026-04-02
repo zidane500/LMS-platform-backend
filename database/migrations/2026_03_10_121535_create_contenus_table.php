@@ -9,7 +9,8 @@ return new class extends Migration
 {
     public function up(): void
     {
-        Schema::table('contenus', function (Blueprint $table) {
+        Schema::create('contenus', function (Blueprint $table) {
+            $table->id();
             $table->foreignId('module_id')
                   ->constrained('modules')
                   ->onDelete('cascade');
@@ -21,17 +22,12 @@ return new class extends Migration
             $table->text('resume')->nullable();
             $table->string('miniature', 500)->nullable();
             $table->unsignedSmallInteger('ordre')->default(0);
+            $table->timestamps();
         });
     }
 
-    public function down(): void
-    {
-        Schema::table('contenus', function (Blueprint $table) {
-            $table->dropForeign(['module_id']);
-            $table->dropColumn([
-                'module_id','titre','type','url','chemin_fichier',
-                'duree','resume','miniature','ordre',
-            ]);
-        });
-    }
+   public function down(): void
+{
+    Schema::dropIfExists('contenus');
+}
 };

@@ -12,8 +12,14 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('questions', function (Blueprint $table) {
-            $table->id();
-            $table->timestamps();
+        $table->id();
+        $table->foreignId('quiz_id')->constrained('quiz')->onDelete('cascade');
+        $table->text('texte');
+        $table->string('type'); // qcm, vrai_faux, texte_libre
+        $table->integer('points')->default(1);
+        $table->integer('ordre')->default(1);
+        $table->text('correction_attendue')->nullable()->after('texte');
+        $table->timestamps();
         });
     }
 

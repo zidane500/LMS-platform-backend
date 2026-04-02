@@ -11,9 +11,16 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('tentatives_quiz', function (Blueprint $table) {
-            $table->id();
-            $table->timestamps();
+         Schema::create('tentatives_quiz', function (Blueprint $table) {
+        $table->id();
+        $table->foreignId('quiz_id')->constrained('quiz')->onDelete('cascade');
+        $table->foreignId('user_id')->constrained('users')->onDelete('cascade');
+        $table->integer('score')->default(0);
+        $table->integer('score_max')->default(0);
+        $table->boolean('reussi')->default(false);
+        $table->integer('duree_secondes')->nullable();
+        $table->timestamp('termine_le')->nullable();
+        $table->timestamps();
         });
     }
 

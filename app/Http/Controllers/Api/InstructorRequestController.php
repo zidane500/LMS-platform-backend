@@ -165,23 +165,26 @@ class InstructorRequestController extends Controller
 
     // ─── Accès aux fichiers PDF ──────────────────────────────────
     public function downloadFile(Request $request, $id, $type)
-    {
-        $this->authorize_admin($request->user());
+{
+    $this->authorize_admin($request->user());
 
-        $demande = DemandeFormateur::findOrFail($id);
+    $demande = DemandeFormateur::findOrFail($id);
 
-        $chemin = $type === 'cv'
-            ? $demande->chemin_cv
-            : $demande->chemin_attestation;
+    $chemins = $type === 'cv'
+        ? json_decode($demande->chemin_cv, true)
+        : json_decode($demande->chemin_attestation, true);
 
-        if (!Storage::disk('public')->exists($chemin)) {
-            return response()->json(['message' => 'Fichier non trouvé'], 404);
-        }
+    $chemin = is_array($chemins) ? ($chemins[0] ?? null) : $chemins;
 
-        return response()->json([
-            'url' => asset('storage/' . $chemin),
-        ]);
+    if (!$chemin || !Storage::disk('public')->exists($chemin)) {
+        return response()->json(['message' => 'Fichier non trouvé'], 404);
     }
+
+    // ✅ Retourner l'URL publique directement
+    return response()->json([
+        'url' => asset('storage/' . $chemin),
+    ]);
+}
 
     // ─── Méthodes privées ────────────────────────────────────────
     private function authorize_admin(User $user): void
