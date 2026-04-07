@@ -9,6 +9,8 @@ use App\Models\ModuleFormation;
 use App\Models\ProgressionContenu;
 use App\Models\User;
 use Illuminate\Http\Request;
+use App\Services\BadgeService;
+use App\Models\ProgressionFormation;
 use Illuminate\Support\Facades\Storage;
 
 class ContenuController extends Controller
@@ -150,30 +152,61 @@ class ContenuController extends Controller
     }
 
     // ─── US 3.2 : Marquer un contenu comme consulté ───────
-    public function marquerConsulte(Request $request, $formationId, $moduleId, $contenuId)
-    {
-        $user    = $request->user();
-        Contenu::where('module_id', $moduleId)->findOrFail($contenuId);
 
-        $request->validate([
-            'pourcentage' => 'nullable|integer|min:0|max:100',
-            'complete'    => 'nullable|boolean',
-        ]);
 
-        $pourcentage = $request->pourcentage ?? 100;
-        $complete    = $request->complete    ?? ($pourcentage >= 90);
+public function marquerConsulte(Request $request, $formationId, $moduleId, $contenuId)
+{
+    $user    = $request->user();
+    Contenu::where('module_id', $moduleId)->findOrFail($contenuId);
 
-        ProgressionContenu::updateOrCreate(
-            ['user_id' => $user->id, 'contenu_id' => $contenuId],
+    $request->validate([
+        'pourcentage' => 'nullable|integer|min:0|max:100',
+        'complete'    => 'nullable|boolean',
+    ]);
+
+    $pourcentage = $request->pourcentage ?? 100;
+    $complete    = $request->complete    ?? ($pourcentage >= 90);
+
+    ProgressionContenu::updateOrCreate(
+        ['user_id' => $user->id, 'contenu_id' => $contenuId],
+        [
+            'pourcentage'           => $pourcentage,
+            'complete'              => $complete,
+            'derniere_consultation' => now(),
+        ]
+    );
+
+    // ✅ Mettre à jour progression_formations
+    $formation = \App\Models\Formation::with(['modules.contenus'])->find($formationId);
+    if ($formation) {
+        $tousContenus      = $formation->modules->flatMap(fn($m) => $m->contenus);
+        $total             = $tousContenus->count();
+        $completesCount    = ProgressionContenu::where('user_id', $user->id)
+            ->whereIn('contenu_id', $tousContenus->pluck('id'))
+            ->where('complete', true)
+            ->count();
+        $pourcentageGlobal = $total > 0 ? round(($completesCount / $total) * 100) : 0;
+
+        ProgressionFormation::updateOrCreate(
+            ['user_id' => $user->id, 'formation_id' => $formationId],
             [
-                'pourcentage'           => $pourcentage,
-                'complete'              => $complete,
-                'derniere_consultation' => now(),
+                'pourcentage_global' => $pourcentageGlobal,
+                'contenus_completes' => $completesCount,
+                'complete'           => $pourcentageGlobal >= 100,
+                'termine_le'         => $pourcentageGlobal >= 100 ? now() : null,
             ]
         );
-
-        return response()->json(['message' => 'Progression enregistrée']);
     }
+
+    // ✅ Vérifier et attribuer les badges
+    $badgeService   = app(BadgeService::class);
+    $nouveauxBadges = $badgeService->verifierEtAttribuer($user->id, (int) $formationId);
+
+    return response()->json([
+        'message'         => 'Progression enregistrée',
+        'nouveaux_badges' => $nouveauxBadges,
+    ]);
+}
 
     // ─── Méthodes privées ─────────────────────────────────
     private function authorize_owner_or_admin(User $user, Formation $formation): void

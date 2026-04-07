@@ -10,10 +10,10 @@ class ModuleFormation extends Model
 
     protected $fillable = [
         'formation_id',
-         'titre',
-          'description',
-           'duree',
-            'ordre',
+        'titre',
+        'description',
+        'duree',
+        'ordre',
     ];
 
     protected $casts = [
@@ -26,9 +26,13 @@ class ModuleFormation extends Model
         return $this->belongsTo(Formation::class);
     }
 
-    // relation vers les contenus du module
     public function contenus()
     {
         return $this->hasMany(Contenu::class, 'module_id')->orderBy('ordre');
+    }
+
+    public function quiz()
+    {
+        return $this->hasOne(Quiz::class, 'module_id');
     }
 }

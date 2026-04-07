@@ -10,6 +10,8 @@ use App\Models\TentativeQuiz;
 use App\Models\ReponseApprenant;
 use App\Models\Formation;
 use App\Services\GlmCorrectionService;
+use App\Services\BadgeService;
+use App\Models\ProgressionFormation;
 use Illuminate\Http\Request;
 
 class QuizController extends Controller
@@ -195,7 +197,10 @@ class QuizController extends Controller
     public function passer(Request $request, $formationId, $moduleId, $quizId)
     {
         $user = $request->user();
-        $quiz = Quiz::with(['questions.choix', 'module.formation'])->findOrFail($quizId);
+
+        $quiz = Quiz::with(['questions.choix', 'module.formation'])
+            ->findOrFail($quizId);
+
         $correctionIA = app(GlmCorrectionService::class);
 
         $nbTentatives = TentativeQuiz::where('quiz_id', $quizId)
@@ -308,6 +313,40 @@ class QuizController extends Controller
             ]);
         }
 
+        // ✅ Badges quiz
+$estPremiereTentative = ($nbTentatives === 0);
+$badgeService         = app(BadgeService::class);
+$nouveauxBadges       = $badgeService->verifierBadgeQuiz(
+    $user->id,
+    (int) $formationId,
+    $scoreTotal,
+    $scoreMax,
+    $reussi,
+    $estPremiereTentative
+);
+
+// ✅ Mettre à jour progression_formations
+$formation = \App\Models\Formation::with(['modules.contenus'])->find($formationId);
+if ($formation) {
+    $tousContenus   = $formation->modules->flatMap(fn($m) => $m->contenus);
+    $total          = $tousContenus->count();
+    $completesCount = \App\Models\ProgressionContenu::where('user_id', $user->id)
+        ->whereIn('contenu_id', $tousContenus->pluck('id'))
+        ->where('complete', true)
+        ->count();
+    $pctGlobal = $total > 0 ? round(($completesCount / $total) * 100) : 0;
+
+    ProgressionFormation::updateOrCreate(
+        ['user_id' => $user->id, 'formation_id' => $formationId],
+        [
+            'pourcentage_global' => $pctGlobal,
+            'contenus_completes' => $completesCount,
+            'complete'           => $pctGlobal >= 100,
+            'termine_le'         => $pctGlobal >= 100 ? now() : null,
+        ]
+    );
+}
+
         return response()->json([
             'score' => $scoreTotal,
             'score_max' => $scoreMax,
@@ -317,6 +356,7 @@ class QuizController extends Controller
             'tentative_id' => $tentative->id,
             'nb_tentatives' => $nbTentatives + 1,
             'peut_repasser' => ($nbTentatives + 1) < $quiz->nb_tentatives_max,
+            'nouveaux_badges' => $nouveauxBadges,
             'corrections' => $quiz->questions->map(function ($q) use ($reponsesData) {
                 $rep = collect($reponsesData)->firstWhere('question_id', $q->id);
 
