@@ -48,6 +48,9 @@ class ContenuController extends Controller
         ModuleFormation::where('formation_id', $formationId)->findOrFail($moduleId);
 
         $this->authorize_owner_or_admin($user, $formation);
+        
+        $formation = Formation::findOrFail($formationId); // nécessaire pour le titre
+
 
         $request->validate([
             'titre'     => 'required|string|max:255',
@@ -78,6 +81,25 @@ class ContenuController extends Controller
             'miniature'      => $request->miniature,
             'ordre'          => $maxOrdre + 1,
         ]);
+
+       
+      /* 
+        // Notifier uniquement les utilisateurs inscrits à cette formation
+$inscrits = \App\Models\Inscription::where('formation_id', $formationId)
+    ->with('user')
+    ->get();
+
+    foreach ($inscrits as $inscription) {
+    // Ne pas notifier le formateur créateur du contenu
+    if ($inscription->user_id !== $user->id) {
+        \App\Services\NotificationService::send(
+            $inscription->user_id,
+            "📖 Nouveau contenu ajouté dans la formation \"{$formation->titre}\" : \"{$contenu->titre}\"",
+            'info'
+        );
+    }
+}
+*/
 
         return response()->json([
             'message' => 'Contenu ajouté avec succès',

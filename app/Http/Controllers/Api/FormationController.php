@@ -151,10 +151,32 @@ public function instructors()
         'formateur_id' => $user->id,
     ]);
 
-    return response()->json([
+    
+
+    // ✅ NOUVEAU — Notifier admins + tous les utilisateurs (info)
+\App\Services\NotificationService::notifyAdmins(
+    "📚 Nouvelle formation créée : \"{$formation->titre}\" par {$user->prenom} {$user->nom}",
+    'info'
+);
+
+// ✅ Notifier tous les apprenants et formateurs (sauf le créateur)
+$destinataires = \App\Models\User::whereIn('role', ['apprenant', 'formateur'])
+    ->where('id', '!=', $user->id)
+    ->get();
+
+foreach ($destinataires as $dest) {
+    \App\Services\NotificationService::send(
+        $dest->id,
+        "📚 Nouvelle formation disponible : \"{$formation->titre}\"",
+        'info'
+    );
+}
+
+return response()->json([
         'message' => 'Formation créée avec succès',
         'formation' => $formation,
     ], 201);
+
 }
 
     // ─── US 2.1 (modifier) : Mettre à jour une formation ──
@@ -215,34 +237,48 @@ public function instructors()
 
     // ─── Inscription à une formation ──────────────────────
     public function enroll(Request $request, $id)
-    {
-        $user = $request->user();
+{
+    $user = $request->user();
 
-        if ($user->role !== 'apprenant') {
-            return response()->json(['message' => 'Seuls les apprenants peuvent s\'inscrire.'], 403);
-        }
-
-        $formation = Formation::findOrFail($id);
-
-        if ($formation->statut !== 'publie') {
-            return response()->json(['message' => 'Cette formation n\'est pas disponible.'], 400);
-        }
-
-        $already = Inscription::where('user_id', $user->id)
-                              ->where('formation_id', $id)
-                              ->exists();
-
-        if ($already) {
-            return response()->json(['message' => 'Vous êtes déjà inscrit à cette formation.'], 409);
-        }
-
-        Inscription::create([
-            'user_id'      => $user->id,
-            'formation_id' => $id,
-        ]);
-
-        return response()->json(['message' => 'Inscription réussie !'], 201);
+    // ✅ Apprenants ET formateurs peuvent s'inscrire
+    if (!in_array($user->role, ['apprenant', 'formateur'])) {
+        return response()->json([
+            'message' => 'Seuls les apprenants et formateurs peuvent s\'inscrire.',
+        ], 403);
     }
+
+    $formation = Formation::findOrFail($id);
+
+    // ✅ Un formateur ne peut pas s'inscrire à SA PROPRE formation
+    if ($user->role === 'formateur' && $formation->formateur_id === $user->id) {
+        return response()->json([
+            'message' => 'Vous êtes le créateur de cette formation, vous y avez accès direct sans inscription.',
+        ], 403);
+    }
+
+    if ($formation->statut !== 'publie') {
+        return response()->json([
+            'message' => 'Cette formation n\'est pas disponible.',
+        ], 400);
+    }
+
+    $already = Inscription::where('user_id', $user->id)
+                          ->where('formation_id', $id)
+                          ->exists();
+
+    if ($already) {
+        return response()->json([
+            'message' => 'Vous êtes déjà inscrit à cette formation.',
+        ], 409);
+    }
+
+    Inscription::create([
+        'user_id'      => $user->id,
+        'formation_id' => $id,
+    ]);
+
+    return response()->json(['message' => 'Inscription réussie !'], 201);
+}
 
     // ─── Récupérer les catégories disponibles ─────────────
     public function categories()

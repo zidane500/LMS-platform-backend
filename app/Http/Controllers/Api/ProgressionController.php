@@ -16,9 +16,9 @@ class ProgressionController extends Controller
 {
     // ─── US 5.1 : Progression d'un apprenant sur une formation ──
     public function show(Request $request, $formationId)
-    {
-        $user      = $request->user();
-        $formation = Formation::with(['modules.contenus'])->findOrFail($formationId);
+{
+    $user      = $request->user();
+    $formation = Formation::with(['modules.contenus', 'modules.quiz'])->findOrFail($formationId);
 
         // Tous les contenus de la formation
         $tousContenus = $formation->modules->flatMap(fn($m) => $m->contenus);
@@ -52,11 +52,16 @@ class ProgressionController extends Controller
         });
 
         // Quiz tentatives
-        $quizIds = $formation->modules->flatMap(fn($m) => $m->quiz ?? [])->pluck('id');
-        $tentatives = TentativeQuiz::where('user_id', $user->id)
-            ->whereIn('quiz_id', $quizIds)
-            ->orderBy('created_at', 'desc')
-            ->get()
+        //  Fix : hasOne retourne un modèle, pas un tableau
+$quizIds = $formation->modules
+    ->map(fn($m) => optional($m->quiz)->id)
+    ->filter()
+    ->values();
+
+$tentatives = TentativeQuiz::where('user_id', $user->id)
+    ->whereIn('quiz_id', $quizIds)
+    ->orderBy('created_at', 'desc')
+    ->get()
             ->map(fn($t) => [
                 'quiz_id'        => (string) $t->quiz_id,
                 'score'          => $t->score,
@@ -168,4 +173,79 @@ class ProgressionController extends Controller
             'apprenants'      => $apprenants,
         ]);
     }
+
+    // Progression vers chaque badge (pour afficher les barres)
+public function badgeProgression(Request $request)
+{
+    $user = $request->user();
+    $userId = $user->id;
+
+    // Toutes les formations de l'apprenant
+    $formations = \App\Models\Formation::with(['modules.contenus', 'modules.quiz'])
+        ->whereHas('inscriptions', fn($q) => $q->where('user_id', $userId))
+        ->get();
+
+    $tousContenus    = $formations->flatMap(fn($f) => $f->modules->flatMap(fn($m) => $m->contenus));
+    $totalContenus   = $tousContenus->count();
+    $completesCount  = \App\Models\ProgressionContenu::where('user_id', $userId)
+        ->whereIn('contenu_id', $tousContenus->pluck('id'))
+        ->where('complete', true)->count();
+
+    // Meilleure progression de formation
+    $meilleureProg = \App\Models\ProgressionFormation::where('user_id', $userId)
+        ->orderByDesc('pourcentage_global')->first();
+    $maxFormPct = $meilleureProg?->pourcentage_global ?? 0;
+
+    // Meilleure progression de module
+    $maxModulePct = 0;
+    foreach ($formations as $formation) {
+        foreach ($formation->modules as $module) {
+            $total    = $module->contenus->count();
+            if ($total === 0) continue;
+            $done = \App\Models\ProgressionContenu::where('user_id', $userId)
+                ->whereIn('contenu_id', $module->contenus->pluck('id'))
+                ->where('complete', true)->count();
+            $pct = round(($done / $total) * 100);
+            if ($pct > $maxModulePct) $maxModulePct = $pct;
+        }
+    }
+
+    // Aujourd'hui
+    $aujourd_hui = now()->toDateString();
+    $consultesAujourdhui = \App\Models\ProgressionContenu::where('user_id', $userId)
+        ->whereDate('derniere_consultation', $aujourd_hui)
+        ->where('complete', true)->count();
+
+    // Quiz
+    $allQuizIds = $formations->flatMap(fn($f) => $f->modules->map(fn($m) => optional($m->quiz)->id))->filter();
+    $totalQuiz  = $allQuizIds->count();
+    $quizReussis = \App\Models\TentativeQuiz::where('user_id', $userId)
+        ->whereIn('quiz_id', $allQuizIds)->where('reussi', true)
+        ->distinct('quiz_id')->count('quiz_id');
+
+    // Score parfait (100%)
+    $scoreParfait = \App\Models\TentativeQuiz::where('user_id', $userId)
+        ->whereIn('quiz_id', $allQuizIds)
+        ->whereRaw('score = score_max AND score_max > 0')->exists();
+
+    // Premier coup (réussi à la 1ère tentative)
+    $premierCoup = false;
+    foreach ($allQuizIds as $qid) {
+        $premiere = \App\Models\TentativeQuiz::where('user_id', $userId)
+            ->where('quiz_id', $qid)->orderBy('created_at')->first();
+        if ($premiere && $premiere->reussi) { $premierCoup = true; break; }
+    }
+
+    return response()->json([
+        'premier_contenu'   => ['progress' => $completesCount > 0 ? 100 : 0,   'detail' => "{$completesCount} contenu(s) consulté(s)"],
+        'module_complete'   => ['progress' => $maxModulePct,                     'detail' => "{$maxModulePct}% du module le plus avancé"],
+        'formation_complete'=> ['progress' => $maxFormPct,                       'detail' => "{$maxFormPct}% de la formation"],
+        'assidu'            => ['progress' => min(100, round(($consultesAujourdhui / 5) * 100)), 'detail' => "{$consultesAujourdhui}/5 contenus aujourd'hui"],
+        'quiz_reussi'       => ['progress' => $totalQuiz > 0 ? round(($quizReussis / $totalQuiz) * 100) : 0, 'detail' => "{$quizReussis}/{$totalQuiz} quiz réussis"],
+        'quiz_parfait'      => ['progress' => $scoreParfait ? 100 : 0,           'detail' => 'Score parfait (100%) requis'],
+        'premier_coup'      => ['progress' => $premierCoup ? 100 : 0,            'detail' => 'Réussir un quiz dès la 1ère tentative'],
+        'certifie'          => ['progress' => $maxFormPct,                       'detail' => "{$maxFormPct}% — compléter formation + quiz"],
+        'assidu_semaine'    => ['progress' => 0,                                 'detail' => 'Non implémenté'],
+    ]);
+}
 }

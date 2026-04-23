@@ -11,7 +11,7 @@ class TentativeQuiz extends Model
     ];
     protected $casts = [
         'reussi'      => 'boolean',
-        'score'       => 'integer',
+        'score'       => 'float',
         'score_max'   => 'integer',
         'termine_le'  => 'datetime',
     ];

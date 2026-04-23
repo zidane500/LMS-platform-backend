@@ -18,11 +18,11 @@ return new class extends Migration
         $table->foreignId('choix_id')->nullable()->constrained('choix_reponses')->onDelete('set null');
         $table->text('reponse_texte')->nullable();
         $table->boolean('est_correct')->default(false);
-        $table->integer('score_ia')->nullable()->after('est_correct');
+        $table->decimal('score_ia', 8, 2)->nullable()->after('est_correct');
         $table->text('feedback_ia')->nullable()->after('score_ia');
         $table->text('points_forts')->nullable()->after('feedback_ia');
         $table->text('points_amelioration')->nullable()->after('points_forts');
-        $table->integer('points_obtenus')->default(0)->after('points_amelioration');
+        $table->decimal('points_obtenus', 8, 2)->default(0)->after('points_amelioration');
         $table->timestamps();
         });
     }

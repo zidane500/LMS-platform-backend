@@ -17,7 +17,11 @@ class ReponseApprenant extends Model
             'points_amelioration',
              'points_obtenus',
              ];
-    protected $casts    = ['est_correct' => 'boolean'];
+   protected $casts = [
+    'est_correct'   => 'boolean',
+    'score_ia'      => 'float',     
+    'points_obtenus'=> 'float',     
+];
 
     public function tentative() { return $this->belongsTo(TentativeQuiz::class, 'tentative_id'); }
     public function question()  { return $this->belongsTo(Question::class); }

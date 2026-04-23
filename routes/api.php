@@ -9,6 +9,10 @@ use App\Http\Controllers\Api\ContenuController;
 use App\Http\Controllers\Api\QuizController;
 use App\Http\Controllers\Api\ProgressionController;
 use App\Services\GlmCorrectionService;
+use App\Http\Controllers\Api\CertificatController;
+use App\Http\Controllers\Api\NotificationController;
+use App\Http\Controllers\Api\ReportController;
+use App\Http\Controllers\Api\DashboardController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
@@ -33,6 +37,8 @@ Route::get('/formations/{id}',       [FormationController::class, 'show']);
 Route::get('/formations/{formationId}/modules/{moduleId}/contenus',
     [ContenuController::class, 'index']);
 
+Route::get('/certificats/verifier/{numero}', [CertificatController::class, 'verifier']);
+
 
 
 
@@ -42,6 +48,8 @@ Route::get('/formations/{formationId}/modules/{moduleId}/contenus',
 //  ROUTES PROTÉGÉES
 // ═══════════════════════════════════════════════════════════
 Route::middleware('auth:sanctum')->group(function () {
+
+Route::post('/reports', [ReportController::class, 'store']);
 
     Route::prefix('auth')->group(function () {
         Route::post('/logout', [AuthController::class, 'logout']);
@@ -99,10 +107,44 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // EPIC 5 : Progression et Badges
     Route::prefix('progression')->group(function () {
+     Route::get('/progression/badges-progress', [ProgressionController::class, 'badgeProgression']);
     Route::get('/',                        [ProgressionController::class, 'index']);
     Route::get('/{formationId}',           [ProgressionController::class, 'show']);
     Route::get('/{formationId}/formateur', [ProgressionController::class, 'formateur']);
+   
+    
 });
+
+// Epic 6 : certification
+    Route::prefix('certificats')->group(function () {
+    Route::get('/',                    [CertificatController::class, 'index']);
+    Route::post('/{formationId}',      [CertificatController::class, 'generer']);
+});
+
+// Notification
+Route::prefix('notifications')->group(function () {
+    Route::get('/',              [NotificationController::class, 'index']);
+    Route::get('/non-lues',      [NotificationController::class, 'nonLues']);
+    Route::post('/tout-lire',    [NotificationController::class, 'marquerToutLu']);
+    Route::post('/{id}/lire',    [NotificationController::class, 'marquerLu']);
+    Route::delete('/{id}',       [NotificationController::class, 'destroy']);
+});
+
+
+// ── Dashboard Charts ──────────────────────────────────────
+Route::prefix('dashboard')->group(function () {
+    Route::get('/mes-formations',          [DashboardController::class, 'mesFormations']);
+    Route::get('/inscriptions-semaine',    [DashboardController::class, 'inscriptionsParSemaine']);
+    Route::get('/apprenant/stats',         [DashboardController::class, 'apprenantStats']);
+});
+
+// ── Demandes formateur ────────────────────────────────────
+Route::get('/instructor-requests',             [InstructorRequestController::class, 'index']);
+Route::post('/instructor-requests',            [InstructorRequestController::class, 'store']);
+Route::get('/instructor-requests/my-request',  [InstructorRequestController::class, 'myRequest']);
+Route::post('/instructor-requests/{id}/process', [InstructorRequestController::class, 'process']);
+Route::delete('/instructor-requests/{id}',     [InstructorRequestController::class, 'destroy']);
+
 
 });
 
@@ -127,6 +169,8 @@ Route::post('/test-glm-correction', function (Request $request, GlmCorrectionSer
         )
     );
 });
+
+
 Route::get('/test-ollama-config', function () {
     return response()->json([
         'base_url' => config('services.ollama.base_url'),
@@ -137,7 +181,7 @@ Route::get('/test-ollama-config', function () {
 });
 
 
-
+Route::get('/certificats/verifier/{numero}', [CertificatController::class, 'verifier']);
 
 
     // ── Route de streaming vidéo avec Range support ──────────

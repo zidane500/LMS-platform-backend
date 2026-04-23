@@ -50,6 +50,13 @@ class AuthController extends Controller
             'technologies'    => $validated['technologies'] ?? [],
         ]);
 
+
+          // Notifier les admins d'une nouvelle inscription
+         \App\Services\NotificationService::notifyAdmins(
+          "👤 Nouvelle inscription : {$user->prenom} {$user->nom} ({$user->email})",
+          'info'
+           );
+
         $token = $user->createToken('auth_token')->plainTextToken;
 
         return response()->json([
@@ -98,37 +105,40 @@ class AuthController extends Controller
 
     // ─── ME ───────────────────────────────────────────────
     public function me(Request $request)
-    {
-        return response()->json($this->formatUser($request->user()));
+{
+    $user = $request->user();
+
+    if (!$user) {
+        return response()->json([
+            'message' => 'Unauthenticated'
+        ], 401);
     }
+
+    return response()->json($this->formatUser($user));
+}
 
     // ─── MOT DE PASSE OUBLIÉ ──────────────────────────────
     // Envoie un email avec un lien de réinitialisation
-    public function forgotPassword(Request $request)
+   public function forgotPassword(Request $request)
 {
     $request->validate([
         'email' => 'required|email|exists:users,email',
     ]);
 
-    // Génère et sauvegarde le token dans password_reset_tokens
-    $token = \Illuminate\Support\Str::random(64);
-
-    DB::table('password_reset_tokens')->updateOrInsert(
-        ['email' => $request->email],
-        [
-            'token'      => bcrypt($token),
-            'created_at' => now(),
-        ]
+    // ✅ Envoie l'email via le Password Broker Laravel + SMTP configuré
+    $status = Password::sendResetLink(
+        $request->only('email')
     );
 
-    // En mode développement → le lien est dans storage/logs/laravel.log
-    Log::info('=== RESET PASSWORD LINK ===');
-    Log::info('http://localhost:5173/reset-password?token=' . $token . '&email=' . urlencode($request->email));
-    Log::info('===========================');
+    if ($status === Password::RESET_LINK_SENT) {
+        return response()->json([
+            'message' => 'Un email de réinitialisation a été envoyé.',
+        ]);
+    }
 
     return response()->json([
-        'message' => 'Un email de réinitialisation a été envoyé.',
-    ]);
+        'message' => 'Impossible d\'envoyer l\'email. Réessayez.',
+    ], 400);
 }
 
     // ─── RÉINITIALISER LE MOT DE PASSE ────────────────────

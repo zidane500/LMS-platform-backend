@@ -6,7 +6,9 @@ use App\Http\Controllers\Controller;
 use App\Models\DemandeFormateur;
 use App\Models\Formateur;
 use App\Models\User;
+use App\Services\NotificationService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Storage;
 
 class InstructorRequestController extends Controller
@@ -16,14 +18,12 @@ class InstructorRequestController extends Controller
     {
         $user = $request->user();
 
-        // Seuls les apprenants peuvent faire une demande
         if ($user->role !== 'apprenant') {
             return response()->json([
                 'message' => 'Seuls les apprenants peuvent soumettre cette demande.',
             ], 403);
         }
 
-        // Vérifier qu'il n'y a pas déjà une demande en attente
         $existing = DemandeFormateur::where('user_id', $user->id)
                                     ->where('statut', 'en_attente')
                                     ->first();
@@ -33,30 +33,30 @@ class InstructorRequestController extends Controller
             ], 409);
         }
 
-        // Validation
         $request->validate([
             'specialite'         => 'required|string|max:200',
             'experience_annees'  => 'required|integer|min:0|max:50',
-            'motivation'         => 'required|string|:50',
+            'motivation'         => 'required|string|min:50',
             'langues_enseignees' => 'required|array|min:1',
-            'cv'            => 'required|array|min:1',
-            'cv.*'          => 'file|mimes:pdf|max:5120',        
-            'attestation'   => 'required|array|min:1',
-            'attestation.*' => 'file|mimes:pdf|max:5120',
+            // ✅ Fix 1 — Limite : 5 CV max, 10 attestations max
+            'cv'                 => 'required|array|min:1|max:5',
+            'cv.*'               => 'file|mimes:pdf|max:5120',
+            'attestation'        => 'required|array|min:1|max:10',
+            'attestation.*'      => 'file|mimes:pdf|max:5120',
         ]);
 
-        // Sauvegarder les fichiers PDF
+        // ✅ Sauvegarder TOUS les fichiers CV
         $cheminsCv = [];
         foreach ($request->file('cv') as $file) {
-        $cheminsCv[] = $file->store('demandes/cv', 'public');
+            $cheminsCv[] = $file->store('demandes/cv', 'public');
         }
 
+        // ✅ Sauvegarder TOUTES les attestations
         $cheminsAttestation = [];
         foreach ($request->file('attestation') as $file) {
-        $cheminsAttestation[] = $file->store('demandes/attestations', 'public');
+            $cheminsAttestation[] = $file->store('demandes/attestations', 'public');
         }
 
-        // Créer la demande
         $demande = DemandeFormateur::create([
             'user_id'            => $user->id,
             'specialite'         => $request->specialite,
@@ -67,6 +67,11 @@ class InstructorRequestController extends Controller
             'chemin_attestation' => json_encode($cheminsAttestation),
             'statut'             => 'en_attente',
         ]);
+
+        NotificationService::notifyAdmins(
+            "📋 Nouvelle demande de formateur de {$user->prenom} {$user->nom} ({$user->email})",
+            'info'
+        );
 
         return response()->json([
             'message' => 'Demande envoyée avec succès. Vous serez notifié de la décision.',
@@ -95,7 +100,6 @@ class InstructorRequestController extends Controller
 
         $query = DemandeFormateur::with('user');
 
-        // Filtre par statut
         if ($request->has('statut') && $request->statut !== 'all') {
             $query->where('statut', $request->statut);
         }
@@ -113,7 +117,8 @@ class InstructorRequestController extends Controller
         $this->authorize_admin($request->user());
 
         $request->validate([
-            'action' => 'required|in:accepter,refuser',
+            'action'            => 'required|in:accepter,refuser',
+            'commentaire_admin' => 'nullable|string|max:500',
         ]);
 
         $demande = DemandeFormateur::with('user')->findOrFail($id);
@@ -124,18 +129,24 @@ class InstructorRequestController extends Controller
             ], 409);
         }
 
+        $user = $demande->user;
+        $nom  = $user->prenom . ' ' . $user->nom;
+
         if ($request->action === 'accepter') {
-            // Mettre à jour le statut de la demande
-            $demande->statut         = 'acceptee';
-            $demande->admin_id       = $request->user()->id;
+
+            $demande->statut          = 'acceptee';
+            $demande->admin_id        = $request->user()->id;
             $demande->date_traitement = now();
             $demande->save();
 
-            // Changer le rôle de l'utilisateur → formateur
-            $demande->user->role = 'formateur';
-            $demande->user->save();
+            $user->role = 'formateur';
+            $user->save();
 
-            // Créer l'entrée dans la table formateurs
+            \App\Models\Apprenant::firstOrCreate(
+                ['user_id' => $demande->user_id],
+                ['domaines_cibles' => [], 'technologies' => []]
+            );
+
             Formateur::updateOrCreate(
                 ['user_id' => $demande->user_id],
                 [
@@ -145,16 +156,47 @@ class InstructorRequestController extends Controller
                 ]
             );
 
+            // ✅ Notification acceptation — type 'info'
+            NotificationService::send(
+                $user->id,
+                "Votre demande de devenir formateur a été approuvée. Bienvenue dans l'équipe pédagogique !",
+                'info'
+            );
+
+            $this->envoyerEmailDecision(
+                user:        $user,
+                nom:         $nom,
+                approuve:    true,
+                commentaire: $request->commentaire_admin ?? 'Votre profil correspond à nos critères.'
+            );
+
             return response()->json([
-                'message' => 'Demande acceptée. L\'utilisateur est maintenant formateur.',
+                'message' => 'Demande acceptée. L\'utilisateur a été notifié.',
                 'demande' => $this->formatDemande($demande),
             ]);
+
         } else {
-            // Refus
+
             $demande->statut          = 'refusee';
             $demande->admin_id        = $request->user()->id;
             $demande->date_traitement = now();
             $demande->save();
+
+            $motif = $request->commentaire_admin ?? 'Non précisé';
+
+            // ✅ Fix 2 — Notification refus aussi en type 'info' (pas 'warning')
+            NotificationService::send(
+                $user->id,
+                "Votre demande de devenir formateur a été refusée.  \nMotif : {$motif}",
+                'info'
+            );
+
+            $this->envoyerEmailDecision(
+                user:        $user,
+                nom:         $nom,
+                approuve:    false,
+                commentaire: $motif
+            );
 
             return response()->json([
                 'message' => 'Demande refusée. L\'utilisateur a été notifié.',
@@ -163,28 +205,75 @@ class InstructorRequestController extends Controller
         }
     }
 
-    // ─── Accès aux fichiers PDF ──────────────────────────────────
-    public function downloadFile(Request $request, $id, $type)
-{
-    $this->authorize_admin($request->user());
+    // ─── Email de décision envoyé à l'apprenant ──────────────────
+    private function envoyerEmailDecision(
+        User   $user,
+        string $nom,
+        bool   $approuve,
+        string $commentaire
+    ): void {
+        $statutLabel = $approuve ? 'approuvée' : 'refusée';
+        $couleur     = $approuve ? '#16a34a' : '#dc2626';
 
-    $demande = DemandeFormateur::findOrFail($id);
-
-    $chemins = $type === 'cv'
-        ? json_decode($demande->chemin_cv, true)
-        : json_decode($demande->chemin_attestation, true);
-
-    $chemin = is_array($chemins) ? ($chemins[0] ?? null) : $chemins;
-
-    if (!$chemin || !Storage::disk('public')->exists($chemin)) {
-        return response()->json(['message' => 'Fichier non trouvé'], 404);
+        Mail::send([], [], function ($mail) use (
+            $user, $nom, $approuve, $statutLabel, $commentaire, $couleur
+        ) {
+            $mail->to($user->email)
+                 ->subject("Résultat de votre demande de formateur")
+                 ->html("
+                    <div style='font-family: Arial, sans-serif; max-width: 600px;
+                                margin: 0 auto; padding: 24px;'>
+                        <h2 style='color: {$couleur};'>
+                            Votre demande a été <u>{$statutLabel}</u>
+                        </h2>
+                        <p>Bonjour <strong>{$nom}</strong>,</p>
+                        " . ($approuve ? "
+                        <p>Félicitations ! Votre demande de devenir formateur a été
+                           <strong style='color:#16a34a;'>approuvée</strong>.
+                           Vous pouvez maintenant créer et gérer des formations
+                           sur la plateforme.</p>
+                        " : "
+                        <p>Nous avons examiné votre demande de devenir formateur.
+                           Malheureusement, elle a été
+                           <strong style='color:#dc2626;'>refusée</strong>.</p>
+                        ") . "
+                        <div style='background:#f3f4f6; padding:15px;
+                                    border-left:4px solid {$couleur};
+                                    border-radius:4px; margin:20px 0;'>
+                            <p style='margin:0; font-weight:bold;'>
+                                Commentaire de l'administrateur :
+                            </p>
+                            <p style='margin:8px 0 0;'>{$commentaire}</p>
+                        </div>
+                        <p style='color:#6b7280; font-size:13px;'>
+                            L'équipe LMS Platform
+                        </p>
+                    </div>
+                 ");
+        });
     }
 
-    // ✅ Retourner l'URL publique directement
-    return response()->json([
-        'url' => asset('storage/' . $chemin),
-    ]);
-}
+    // ─── Accès aux fichiers PDF ──────────────────────────────────
+    public function downloadFile(Request $request, $id, $type)
+    {
+        $this->authorize_admin($request->user());
+
+        $demande = DemandeFormateur::findOrFail($id);
+
+        $chemins = $type === 'cv'
+            ? json_decode($demande->chemin_cv, true)
+            : json_decode($demande->chemin_attestation, true);
+
+        $chemin = is_array($chemins) ? ($chemins[0] ?? null) : $chemins;
+
+        if (!$chemin || !Storage::disk('public')->exists($chemin)) {
+            return response()->json(['message' => 'Fichier non trouvé'], 404);
+        }
+
+        return response()->json([
+            'url' => asset('storage/' . $chemin),
+        ]);
+    }
 
     // ─── Méthodes privées ────────────────────────────────────────
     private function authorize_admin(User $user): void
@@ -210,12 +299,20 @@ class InstructorRequestController extends Controller
             'motivation'         => $d->motivation,
             'langues_enseignees' => $d->langues_enseignees ?? [],
             'statut'             => $d->statut,
-            'cv_urls' => $d->chemin_cv 
-            ? array_map(fn($p) => asset('storage/' . $p), json_decode($d->chemin_cv, true) ?? [])
-            : [],
-            'attestation_urls' => $d->chemin_attestation
-            ? array_map(fn($p) => asset('storage/' . $p), json_decode($d->chemin_attestation, true) ?? [])
-            : [],
+            // ✅ Retourne TOUS les fichiers CV (tableau complet)
+            'cv_urls'            => $d->chemin_cv
+                ? array_map(
+                    fn($p) => asset('storage/' . $p),
+                    json_decode($d->chemin_cv, true) ?? []
+                  )
+                : [],
+            // ✅ Retourne TOUTES les attestations (tableau complet)
+            'attestation_urls'   => $d->chemin_attestation
+                ? array_map(
+                    fn($p) => asset('storage/' . $p),
+                    json_decode($d->chemin_attestation, true) ?? []
+                  )
+                : [],
             'date_demande'       => $d->date_demande?->toISOString(),
             'date_traitement'    => $d->date_traitement?->toISOString(),
         ];

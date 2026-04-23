@@ -49,11 +49,18 @@ class User extends Authenticatable
 
 
     public function sendPasswordResetNotification($token): void
-    {
-        $url = 'http://localhost:5173/reset-password?token=' . $token . '&email=' . urlencode($this->email);
+{
+    // ✅ Enregistre l'URL frontend avant d'envoyer la notification
+    \Illuminate\Auth\Notifications\ResetPassword::createUrlUsing(
+        function ($notifiable, $token) {
+            return env('FRONTEND_URL', 'http://localhost:5173')
+                . '/reset-password?token=' . $token
+                . '&email=' . urlencode($notifiable->getEmailForPasswordReset());
+        }
+    );
 
-        $this->notify(new ResetPassword($token));
-    }
+    $this->notify(new \Illuminate\Auth\Notifications\ResetPassword($token));
+}
 
     // Relations
     public function apprenant()

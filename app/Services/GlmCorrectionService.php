@@ -122,7 +122,7 @@ Réponds UNIQUEMENT en JSON valide avec ce format exact :
 }
 
 Règles :
-- score = entier entre 0 et 100
+- score = nombre entre 0 et 100 (décimales autorisées)
 - est_correct = true si score >= 60, sinon false
 - feedback = 1 à 2 phrases en français
 - points_forts = texte court
@@ -155,7 +155,7 @@ PROMPT;
             ];
         }
 
-        $score = max(0, min(100, (int) $data['score']));
+        $score = max(0, min(100, (float) $data['score']));
 
         return [
             'score' => $score,
