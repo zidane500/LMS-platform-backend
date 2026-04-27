@@ -16,7 +16,7 @@ class AdminSeeder extends Seeder
                 'prenom'          => 'Super',
                 'nom'             => 'Admin',
                 'email'           => 'admin@lms.com',
-                'mot_de_passe'    => Hash::make('Admin1234'),
+                'mot_de_passe'    => Hash::make('Admin000'),
                 'role'            => 'admin',
                 'langue_preferee' => 'fr',
             ]);

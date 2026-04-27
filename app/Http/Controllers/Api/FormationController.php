@@ -15,7 +15,7 @@ class FormationController extends Controller
     // ─── US 2.3 : Lister et filtrer les formations ────────
     public function index(Request $request)
 {
-    $query = Formation::with(['formateur', 'modules']);
+    $query = Formation::with(['formateur', 'modules', 'prerequisFormations']);
 
     $user = auth('sanctum')->user();
 
@@ -61,6 +61,11 @@ class FormationController extends Controller
         $query->where('formateur_id', $request->formateur_id);
     }
 
+     // Dans la méthode index(), après les autres filtres, ajoute :
+     if ($request->is_coded === 'true') {
+     $query->where('is_coded', true);
+}
+
     $formations = $query->orderBy('created_at', 'desc')->get();
 
     $inscriptions = [];
@@ -97,7 +102,7 @@ public function instructors()
     // pour que est_inscrit soit correct même sur route publique
     public function show(Request $request, $id)
     {
-        $formation = Formation::with(['formateur', 'modules'])->findOrFail($id);
+        $formation = Formation::with(['formateur', 'modules', 'prerequisFormations'])->findOrFail($id);
 
         $user = auth('sanctum')->user(); // ← FIX ICI
 
@@ -112,71 +117,78 @@ public function instructors()
     }
 
     // ─── US 2.1 : Créer une formation ─────────────────────
-    public function store(Request $request)
+   public function store(Request $request)
 {
     $user = $request->user();
 
     $validated = $request->validate([
-        'titre' => 'required|string|max:255',
-        'description' => 'required|string',
-        'categorie' => 'required|string|max:100',
-        'niveau' => 'required|in:debutant,intermediaire,avance',
-        'duree_estimee' => 'required|integer|min:1',
-        'prerequis' => 'nullable|array',
-        'miniature_fichier' => 'nullable|image|max:5120',
-        'statut' => 'nullable|in:brouillon,publie',
+        'titre'                    => 'required|string|max:255',
+        'description'              => 'required|string',
+        'categorie'                => 'required|string|max:100',
+        'niveau'                   => 'required|in:debutant,intermediaire,avance',
+        'duree_estimee'            => 'required|integer|min:1',
+        'prerequis'                => 'nullable|array',
+        'miniature_fichier'        => 'nullable|image|max:5120',
+        'statut'                   => 'nullable|in:brouillon,publie',
+        // ✅ Formations codées
+        'is_coded'                 => 'nullable|boolean',
+        'code'                     => 'nullable|string|size:8|unique:formations,code',
+        'prerequis_formation_ids'  => 'nullable|array',
+        'prerequis_formation_ids.*'=> 'exists:formations,id',
     ]);
 
     $miniatureUrl = null;
-
-    // ✅ Upload image
     if ($request->hasFile('miniature_fichier')) {
-        $file = $request->file('miniature_fichier');
-
-        $chemin = $file->store('formations/miniatures', 'public');
-
+        $chemin       = $request->file('miniature_fichier')->store('formations/miniatures', 'public');
         $miniatureUrl = asset('storage/' . $chemin);
     }
 
-    // ✅ IMPORTANT : ne pas utiliser ...$validated directement
+    // ✅ Vérifier le droit de créer des formations codées
+    $isCoded = filter_var($request->input('is_coded'), FILTER_VALIDATE_BOOLEAN);
+    if ($isCoded) {
+        $aLeDroit = $user->role === 'admin' || ($user->role === 'formateur' && $user->peut_coder);
+        if (!$aLeDroit) {
+            return response()->json([
+                'message' => "Vous n'avez pas l'autorisation de créer des formations codées.",
+            ], 403);
+        }
+        if (!$request->input('code')) {
+            return response()->json([
+                'message' => 'Un code de 8 caractères est obligatoire.',
+            ], 422);
+        }
+    }
+
     $formation = Formation::create([
-        'titre' => $validated['titre'],
-        'description' => $validated['description'],
-        'categorie' => $validated['categorie'],
-        'niveau' => $validated['niveau'],
+        'titre'         => $validated['titre'],
+        'description'   => $validated['description'],
+        'categorie'     => $validated['categorie'],
+        'niveau'        => $validated['niveau'],
         'duree_estimee' => $validated['duree_estimee'],
-        'prerequis' => $validated['prerequis'] ?? [],
-        'miniature' => $miniatureUrl, // ✅ ICI
-        'statut' => $validated['statut'] ?? 'brouillon',
-        'formateur_id' => $user->id,
+        'prerequis'     => $validated['prerequis'] ?? [],
+        'miniature'     => $miniatureUrl,
+        'statut'        => $validated['statut'] ?? 'brouillon',
+        'formateur_id'  => $user->id,
+        // ✅ Champs codés
+        'is_coded'      => $isCoded,
+        'code'          => $isCoded ? strtoupper($request->input('code')) : null,
     ]);
 
-    
+    // ✅ Attacher les formations prérequises
+    if ($isCoded && $request->has('prerequis_formation_ids')) {
+        $formation->prerequisFormations()->sync($request->prerequis_formation_ids);
+    }
 
-    // ✅ NOUVEAU — Notifier admins + tous les utilisateurs (info)
-\App\Services\NotificationService::notifyAdmins(
-    "📚 Nouvelle formation créée : \"{$formation->titre}\" par {$user->prenom} {$user->nom}",
-    'info'
-);
-
-// ✅ Notifier tous les apprenants et formateurs (sauf le créateur)
-$destinataires = \App\Models\User::whereIn('role', ['apprenant', 'formateur'])
-    ->where('id', '!=', $user->id)
-    ->get();
-
-foreach ($destinataires as $dest) {
-    \App\Services\NotificationService::send(
-        $dest->id,
-        "📚 Nouvelle formation disponible : \"{$formation->titre}\"",
+    // Notifications existantes...
+    \App\Services\NotificationService::notifyAdmins(
+        "📚 Nouvelle formation créée : \"{$formation->titre}\" par {$user->prenom} {$user->nom}",
         'info'
     );
-}
 
-return response()->json([
-        'message' => 'Formation créée avec succès',
+    return response()->json([
+        'message'   => 'Formation créée avec succès',
         'formation' => $formation,
     ], 201);
-
 }
 
     // ─── US 2.1 (modifier) : Mettre à jour une formation ──
@@ -307,36 +319,116 @@ return response()->json([
         abort(403, 'Vous n\'êtes pas autorisé à modifier cette formation.');
     }
 
-    private function formatFormation(Formation $f, array $inscriptionsUtilisateur): array
-    {
-        return [
-            'id'            => (string) $f->id,
-            'titre'         => $f->titre,
-            'description'   => $f->description,
-            'categorie'     => $f->categorie,
-            'niveau'        => $f->niveau,
-            'duree_estimee' => $f->duree_estimee,
-            'prerequis'     => $f->prerequis ?? [],
-            'miniature'     => $f->miniature,
-            'statut'        => $f->statut,
-            'formateur_id'  => (string) $f->formateur_id,
-            'formateur'     => $f->relationLoaded('formateur') && $f->formateur ? [
-                'id'     => (string) $f->formateur->id,
-                'prenom' => $f->formateur->prenom,
-                'nom'    => $f->formateur->nom,
-                'email'  => $f->formateur->email,
-            ] : null,
-            'modules'       => $f->relationLoaded('modules')
-                ? $f->modules->map(fn($m) => [
-                    'id'          => (string) $m->id,
-                    'titre'       => $m->titre,
-                    'description' => $m->description,
-                    'duree'       => $m->duree,
-                    'ordre'       => $m->ordre,
-                ])->toArray()
-                : [],
-            'est_inscrit'   => in_array($f->id, $inscriptionsUtilisateur),
-            'created_at'    => $f->created_at?->toISOString(),
-        ];
+   private function formatFormation(Formation $f, array $inscriptionsUtilisateur): array
+{
+    // Récupérer les prérequis de la formation codée
+    $prerequisFormations = [];
+    if ($f->is_coded) {
+        try {
+            $prerequisFormations = $f->prerequisFormations()
+                ->get(['id', 'titre'])
+                ->map(fn($p) => ['id' => (string) $p->id, 'titre' => $p->titre])
+                ->toArray();
+        } catch (\Exception $e) {
+            $prerequisFormations = [];
+        }
     }
+
+    return [
+        'id'                    => (string) $f->id,
+        'titre'                 => $f->titre,
+        'description'           => $f->description,
+        'categorie'             => $f->categorie,
+        'niveau'                => $f->niveau,
+        'duree_estimee'         => $f->duree_estimee,
+        'prerequis'             => $f->prerequis ?? [],
+        'miniature'             => $f->miniature,
+        'statut'                => $f->statut,
+        'formateur_id'          => (string) $f->formateur_id,
+        // ✅ Champs codés
+        'is_coded'              => (bool) $f->is_coded,
+        'code'                  => $f->is_coded ? $f->code : null,
+        'prerequis_formations'  => $prerequisFormations,
+        'formateur'             => $f->relationLoaded('formateur') && $f->formateur ? [
+            'id'     => (string) $f->formateur->id,
+            'prenom' => $f->formateur->prenom,
+            'nom'    => $f->formateur->nom,
+            'email'  => $f->formateur->email,
+        ] : null,
+        'modules'               => $f->relationLoaded('modules')
+            ? $f->modules->map(fn($m) => [
+                'id'          => (string) $m->id,
+                'titre'       => $m->titre,
+                'description' => $m->description,
+                'duree'       => $m->duree,
+                'ordre'       => $m->ordre,
+            ])->toArray()
+            : [],
+        'est_inscrit'           => in_array($f->id, $inscriptionsUtilisateur),
+        'created_at'            => $f->created_at?->toISOString(),
+    ];
+}
+    // ─── Vérifier le code d'accès ─────────────────────────
+public function verifierCode(Request $request, $id)
+{
+    $request->validate([
+        'code' => 'required|string|size:8',
+    ]);
+
+    $user      = $request->user();
+    $formation = Formation::findOrFail($id);
+
+    // ✅ Admin et formateur propriétaire → accès direct sans code
+    if ($user->role === 'admin' ||
+        ($user->role === 'formateur' && $formation->formateur_id === $user->id)) {
+        return response()->json(['message' => 'Accès accordé !', 'acces' => true]);
+    }
+
+    $acces = \App\Services\CodedFormationService::verifierEtDonnerAcces(
+        $user->id,
+        (int) $id,
+        $request->code
+    );
+
+    if ($acces) {
+        return response()->json(['message' => 'Accès accordé !', 'acces' => true]);
+    }
+
+    return response()->json([
+        'message' => 'Code incorrect ou prérequis manquants.',
+        'acces'   => false,
+    ], 403);
+}
+
+// ─── Vérifier si l'utilisateur a accès à une formation codée ──
+public function verifierAcces(Request $request, $id)
+{
+    $user      = $request->user();
+    $formation = Formation::with('prerequisFormations')->findOrFail($id);
+
+    // ✅ Passer le rôle pour que le formateur propriétaire ait accès sans code
+    $aAcces = $formation->userAAcces($user->id, $user->role);
+
+    $prerequisAvecStatut = [];
+    if ($formation->is_coded) {
+        $certificatsObtenus = \App\Models\Certificat::where('user_id', $user->id)
+            ->pluck('formation_id')
+            ->toArray();
+
+        $prerequisAvecStatut = $formation->prerequisFormations->map(fn($p) => [
+            'id'           => (string) $p->id,
+            'titre'        => $p->titre,
+            'a_certificat' => in_array($p->id, $certificatsObtenus),
+        ])->toArray();
+    }
+
+    return response()->json([
+        'is_coded'             => (bool) $formation->is_coded,
+        'a_acces'              => $aAcces,
+        'prerequis_formations' => $prerequisAvecStatut,
+        // ✅ Informe le frontend si c'est le propriétaire
+        'est_proprietaire'     => $user->role === 'formateur' && $formation->formateur_id === $user->id,
+    ]);
+}
+
 }

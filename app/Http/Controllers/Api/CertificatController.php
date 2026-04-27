@@ -74,6 +74,12 @@ class CertificatController extends Controller
             ]
         );
 
+        // ✅ APRÈS avoir créé/récupéré le certificat, ajoute :
+\App\Services\CodedFormationService::verifierApresObtentionCertificat(
+    $user->id,
+    (int) $formationId
+);
+
        if ($certificat->wasRecentlyCreated) {
     // ✅ Notifier l'apprenant
     \App\Services\NotificationService::send(

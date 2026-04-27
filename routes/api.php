@@ -137,6 +137,9 @@ Route::prefix('dashboard')->group(function () {
     Route::get('/inscriptions-semaine',    [DashboardController::class, 'inscriptionsParSemaine']);
     Route::get('/apprenant/stats',         [DashboardController::class, 'apprenantStats']);
 });
+// ✅ Dans le groupe dashboard, ajoute :
+Route::get('/dashboard/users-stats',     [DashboardController::class, 'usersStats']);
+Route::get('/dashboard/top-formations',  [DashboardController::class, 'topFormations']);
 
 // ── Demandes formateur ────────────────────────────────────
 Route::get('/instructor-requests',             [InstructorRequestController::class, 'index']);
@@ -145,6 +148,22 @@ Route::get('/instructor-requests/my-request',  [InstructorRequestController::cla
 Route::post('/instructor-requests/{id}/process', [InstructorRequestController::class, 'process']);
 Route::delete('/instructor-requests/{id}',     [InstructorRequestController::class, 'destroy']);
 
+// Formations codées
+Route::post('/formations/{id}/verifier-code',  [FormationController::class, 'verifierCode']);
+Route::get('/formations/{id}/verifier-acces',  [FormationController::class, 'verifierAcces']);
+
+// Admin — toggle peut_coder
+Route::post('/admin/users/{id}/toggle-peut-coder', [UserController::class, 'togglePeutCoder']);
+
+// Temps apprentissage
+Route::get('/dashboard/temps-apprentissage',       [DashboardController::class, 'tempsApprentissage']);
+Route::post('/formations/{id}/temps',              [DashboardController::class, 'enregistrerTemps']);
+
+// Admin charts supplémentaires
+Route::get('/dashboard/formations-attention',      [DashboardController::class, 'formationsAttention']);
+Route::get('/dashboard/ia-stats',                  [DashboardController::class, 'iaStats']);
+Route::get('/dashboard/certifications-stats',      [DashboardController::class, 'certificationsStats']);
+Route::get('/dashboard/progression-par-categorie', [DashboardController::class, 'progressionParCategorie']);
 
 });
 

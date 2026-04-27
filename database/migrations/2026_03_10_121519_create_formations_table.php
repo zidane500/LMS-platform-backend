@@ -26,6 +26,8 @@ return new class extends Migration
             $table->json('prerequis')->nullable();
             $table->string('miniature', 500)->nullable();
             $table->enum('statut', ['brouillon', 'publie'])->default('brouillon');
+            $table->boolean('is_coded')->default(false);
+$table->char('code', 8)->nullable()->unique();
         });
     }
 

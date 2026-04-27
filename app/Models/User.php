@@ -33,6 +33,7 @@ class User extends Authenticatable
     protected $casts = [
         'email_verified_at' => 'datetime',
         'date_naissance'    => 'date',
+        'peut_coder' => 'boolean',
     ];
 
     // Nécessaire pour Laravel Auth (champ non standard)

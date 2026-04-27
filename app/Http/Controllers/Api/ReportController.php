@@ -78,7 +78,7 @@ class ReportController extends Controller
 
     // ✅ Notification admin avec le résumé visible directement
     NotificationService::notifyAdmins(
-        "Signalement de \"{$nom}\" ({$role}) \nemail : {$email} \nMessage : {$resume}",
+        "Signalement de {$nom} ({$role}) \nemail : {$email} \nMessage : {$resume}",
         'warning'
     );
 

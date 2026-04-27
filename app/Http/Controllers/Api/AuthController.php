@@ -11,6 +11,7 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Password;
 use Illuminate\Support\Facades\DB;      
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 use Illuminate\Validation\Rules\Password as PasswordRule;
@@ -67,31 +68,33 @@ class AuthController extends Controller
     }
 
     // ─── LOGIN ────────────────────────────────────────────
-    public function login(Request $request)
-    {
-        $request->validate([
-            'email'        => 'required|email',
-            'mot_de_passe' => 'required|string',
-        ]);
+   public function login(Request $request)
+{
+    $request->validate([
+        'email'        => 'required|email',
+        'mot_de_passe' => 'required|string',
+    ]);
 
-        $user = User::where('email', $request->email)->first();
+    // ✅ Vérification Cloudflare Turnstile
+    $this->verifierTurnstile($request);
 
-        if (!$user || !Hash::check($request->mot_de_passe, $user->mot_de_passe)) {
-            throw ValidationException::withMessages([
-                'email' => ['Email ou mot de passe incorrect.'],
-            ]);
-        }
+    $user = User::where('email', $request->email)->first();
 
-        // Révoquer les anciens tokens avant d'en créer un nouveau
-        $user->tokens()->delete();
-
-        $token = $user->createToken('auth_token')->plainTextToken;
-
-        return response()->json([
-            'user'  => $this->formatUser($user),
-            'token' => $token,
+    if (!$user || !Hash::check($request->mot_de_passe, $user->mot_de_passe)) {
+        throw ValidationException::withMessages([
+            'email' => ['Email ou mot de passe incorrect.'],
         ]);
     }
+
+    $user->tokens()->delete();
+
+    $token = $user->createToken('auth_token')->plainTextToken;
+
+    return response()->json([
+        'user'  => $this->formatUser($user),
+        'token' => $token,
+    ]);
+}
 
     // ─── LOGOUT ───────────────────────────────────────────
     public function logout(Request $request)
@@ -187,6 +190,69 @@ public function resetPassword(Request $request)
     ], 400);
 }
 
+private function verifierTurnstile(Request $request): void
+{
+    $token  = $request->input('cf_turnstile_response');
+    $secret = env('CLOUDFLARE_TURNSTILE_SECRET');
+
+    // En local seulement : autoriser le bypass pour les tests
+    if (app()->environment('local') && (!$token || $token === 'bypass')) {
+        return;
+    }
+
+    // Si le secret Cloudflare n'existe pas
+    if (!$secret) {
+        if (app()->environment('local')) {
+            Log::warning('Cloudflare Turnstile secret manquant — bypass en local.');
+            return;
+        }
+
+        abort(422, 'Configuration Turnstile manquante.');
+    }
+
+    // Si aucun token n'est envoyé
+    if (!$token) {
+        abort(422, 'Vérification de sécurité manquante.');
+    }
+
+    try {
+        $http = Http::timeout(10)->asForm();
+
+        // En local seulement : éviter l'erreur cURL error 60
+        if (app()->environment('local')) {
+            $http = $http->withoutVerifying();
+        }
+
+        $response = $http->post('https://challenges.cloudflare.com/turnstile/v0/siteverify', [
+            'secret'   => $secret,
+            'response' => $token,
+            'remoteip' => $request->ip(),
+        ]);
+
+        $result = $response->json();
+
+        Log::info('Cloudflare Turnstile response', [
+            'status' => $response->status(),
+            'success' => $result['success'] ?? false,
+            'error_codes' => $result['error-codes'] ?? [],
+        ]);
+
+        if (!($result['success'] ?? false)) {
+            abort(422, 'Vérification de sécurité échouée. Réessayez.');
+        }
+    } catch (\Throwable $e) {
+        Log::warning('Cloudflare Turnstile error: ' . $e->getMessage());
+
+        // En local seulement : ne pas bloquer les tests
+        if (app()->environment('local')) {
+            return;
+        }
+
+        abort(422, 'Vérification de sécurité indisponible.');
+    }
+}
+
+
     // ─── FORMAT USER (méthode privée) ─────────────────────
     private function formatUser(User $user): array
     {
@@ -206,6 +272,8 @@ public function resetPassword(Request $request)
             'langue_preferee' => $user->langue_preferee,
             'domaines_cibles' => $apprenant?->domaines_cibles ?? [],
             'technologies'    => $apprenant?->technologies ?? [],
+            'peut_coder'      => (bool) ($user->peut_coder ?? false),
+            'created_at'      => $user->created_at?->toISOString(),
         ];
     }
 }

@@ -34,10 +34,11 @@ return [
             'channel' => env('SLACK_BOT_USER_DEFAULT_CHANNEL'),
         ],
     ],
+    
 
-    'ollama' => [
-    'api_key' => env('OLLAMA_API_KEY'),
-    'base_url' => env('OLLAMA_BASE_URL', 'https://ollama.com/api'),
-    'model' => env('OLLAMA_MODEL', 'glm-5:cloud'),
+    'gemini' => [
+    'api_key' => env('GEMINI_API_KEY'),
+    'base_url' => env('GEMINI_BASE_URL', 'https://generativelanguage.googleapis.com/v1beta'),
+    'model' => env('GEMINI_MODEL', 'gemini-2.5-flash'),
 ],
 ];

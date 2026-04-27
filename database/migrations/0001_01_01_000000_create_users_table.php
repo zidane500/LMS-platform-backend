@@ -21,7 +21,8 @@ return new class extends Migration
         $table->date('date_naissance')->nullable();
         $table->string('photo_profil', 500)->nullable();
         $table->string('langue_preferee', 10)->default('fr');
-        $table->enum('role', ['apprenant', 'formateur', 'admin'])->default('apprenant');
+        $table->enum('role', ['apprenant', 'formateur', 'admin'])->default('apprenant'); 
+        $table->boolean('peut_coder')->default(false);
         $table->timestamp('email_verified_at')->nullable();
         $table->rememberToken();
         $table->timestamps();

@@ -158,7 +158,34 @@ class UserController extends Controller
             'langue_preferee' => $user->langue_preferee,
             'domaines_cibles' => $apprenant?->domaines_cibles ?? [],
             'technologies'    => $apprenant?->technologies ?? [],
+             'peut_coder'      => (bool) ($user->peut_coder ?? false),
             'created_at'      => $user->created_at?->toISOString(),
         ];
     }
+
+    // ─── Admin : activer/désactiver le droit de créer des formations codées ──
+public function togglePeutCoder(Request $request, $id)
+{
+    if ($request->user()->role !== 'admin') {
+        return response()->json(['message' => 'Accès refusé.'], 403);
+    }
+
+    $user = User::findOrFail($id);
+
+    if ($user->role !== 'formateur') {
+        return response()->json([
+            'message' => 'Seuls les formateurs peuvent avoir ce droit.',
+        ], 422);
+    }
+
+    $user->peut_coder = !$user->peut_coder;
+    $user->save();
+
+    return response()->json([
+        'message'    => $user->peut_coder
+            ? 'Formateur autorisé à créer des formations codées.'
+            : 'Droit révoqué.',
+        'peut_coder' => $user->peut_coder,
+    ]);
+}
 }
