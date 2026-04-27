@@ -58,19 +58,26 @@ class DashboardController extends Controller
 
     // ── Formateur/Admin : liste de ses formations ───────────
     // GET /api/dashboard/mes-formations
-    public function mesFormations(Request $request)
-    {
-        $user = $request->user();
+    // ── Formateur/Admin : liste de ses formations ───────────
+public function mesFormations(Request $request)
+{
+    $user = $request->user();
 
-        $query = Formation::query();
-        if ($user->role !== 'admin') {
-            $query->where('formateur_id', $user->id);
-        }
+    $query = Formation::query();
 
-        $formations = $query->select('id', 'titre')->get();
-
-        return response()->json($formations);
+    if ($user->role !== 'admin') {
+        // Formateur → ses formations seulement
+        $query->where('formateur_id', $user->id);
+    } elseif ($request->query('mine') === 'true') {
+        // ✅ Admin avec ?mine=true → ses formations créées personnellement
+        $query->where('formateur_id', $user->id);
     }
+    // Admin sans mine=true → toutes les formations
+
+    $formations = $query->select('id', 'titre')->get();
+
+    return response()->json($formations);
+}
 
     // ── Apprenant : stats pour ses graphiques ──────────────
     // GET /api/dashboard/apprenant/stats

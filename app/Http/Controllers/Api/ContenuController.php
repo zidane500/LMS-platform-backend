@@ -178,54 +178,54 @@ $inscrits = \App\Models\Inscription::where('formation_id', $formationId)
 
 public function marquerConsulte(Request $request, $formationId, $moduleId, $contenuId)
 {
-    $user    = $request->user();
-    Contenu::where('module_id', $moduleId)->findOrFail($contenuId);
+    $user = $request->user();
 
-    $request->validate([
-        'pourcentage' => 'nullable|integer|min:0|max:100',
-        'complete'    => 'nullable|boolean',
-    ]);
+    // ✅ Seuls apprenant ET formateur inscrit peuvent marquer
+    if (!in_array($user->role, ['apprenant', 'formateur'])) {
+        return response()->json(['message' => 'Non autorisé'], 403);
+    }
 
-    $pourcentage = $request->pourcentage ?? 100;
-    $complete    = $request->complete    ?? ($pourcentage >= 90);
+    $contenu = \App\Models\Contenu::findOrFail($contenuId);
+    $pourcentage = $request->input('pourcentage', 100);
 
-    ProgressionContenu::updateOrCreate(
+    // Mettre à jour ou créer la progression du contenu
+    \App\Models\ProgressionContenu::updateOrCreate(
         ['user_id' => $user->id, 'contenu_id' => $contenuId],
         [
-            'pourcentage'           => $pourcentage,
-            'complete'              => $complete,
-            'derniere_consultation' => now(),
+            'complete'               => $pourcentage >= 100,
+            'pourcentage'            => min(100, $pourcentage),
+            'derniere_consultation'  => now(),
         ]
     );
 
     // ✅ Mettre à jour progression_formations
-    $formation = \App\Models\Formation::with(['modules.contenus'])->find($formationId);
-    if ($formation) {
-        $tousContenus      = $formation->modules->flatMap(fn($m) => $m->contenus);
-        $total             = $tousContenus->count();
-        $completesCount    = ProgressionContenu::where('user_id', $user->id)
-            ->whereIn('contenu_id', $tousContenus->pluck('id'))
-            ->where('complete', true)
-            ->count();
-        $pourcentageGlobal = $total > 0 ? round(($completesCount / $total) * 100) : 0;
+    $formation = \App\Models\Formation::with(['modules.contenus'])->findOrFail($formationId);
+    $tousContenus   = $formation->modules->flatMap(fn($m) => $m->contenus);
+    $total          = $tousContenus->count();
+    $completesCount = \App\Models\ProgressionContenu::where('user_id', $user->id)
+        ->whereIn('contenu_id', $tousContenus->pluck('id'))
+        ->where('complete', true)
+        ->count();
+    $pctGlobal = $total > 0 ? round(($completesCount / $total) * 100) : 0;
 
-        ProgressionFormation::updateOrCreate(
-            ['user_id' => $user->id, 'formation_id' => $formationId],
-            [
-                'pourcentage_global' => $pourcentageGlobal,
-                'contenus_completes' => $completesCount,
-                'complete'           => $pourcentageGlobal >= 100,
-                'termine_le'         => $pourcentageGlobal >= 100 ? now() : null,
-            ]
-        );
-    }
+    \App\Models\ProgressionFormation::updateOrCreate(
+        ['user_id' => $user->id, 'formation_id' => $formationId],
+        [
+            'pourcentage_global' => $pctGlobal,
+            'contenus_completes' => $completesCount,
+            'complete'           => $pctGlobal >= 100,
+            'termine_le'         => $pctGlobal >= 100 ? now() : null,
+        ]
+    );
 
     // ✅ Vérifier et attribuer les badges
-    $badgeService   = app(BadgeService::class);
+    $badgeService   = app(\App\Services\BadgeService::class);
     $nouveauxBadges = $badgeService->verifierEtAttribuer($user->id, (int) $formationId);
 
     return response()->json([
-        'message'         => 'Progression enregistrée',
+        'message'        => 'Contenu marqué comme consulté',
+        'complete'       => $pourcentage >= 100,
+        'pourcentage'    => $pourcentage,
         'nouveaux_badges' => $nouveauxBadges,
     ]);
 }

@@ -93,26 +93,61 @@ class UserController extends Controller
     }
 
     // ─── US 1.7 (admin) : Modifier un utilisateur ─────────
-    public function update(Request $request, $id)
-    {
-        $this->authorize_admin($request->user());
+   // ─── US 1.7 (admin) : Modifier un utilisateur ─────────
+public function update(Request $request, $id)
+{
+    $this->authorize_admin($request->user());
 
-        $user = User::findOrFail($id);
+    $user = User::findOrFail($id);
 
-        $validated = $request->validate([
-            'prenom' => 'sometimes|required|string|max:100',
-            'nom'    => 'sometimes|required|string|max:100',
-            'email'  => ['sometimes', 'required', 'email', Rule::unique('users')->ignore($id)],
-            'role'   => 'sometimes|required|in:apprenant,formateur,admin',
-        ]);
+    $validated = $request->validate([
+        'prenom'          => 'sometimes|required|string|max:100',
+        'nom'             => 'sometimes|required|string|max:100',
+        'email'           => ['sometimes', 'required', 'email', Rule::unique('users')->ignore($id)],
+        'role'            => 'sometimes|required|in:apprenant,formateur,admin',
+        // ✅ Nouveaux champs
+        'telephone'       => 'nullable|string|max:20',
+        'date_naissance'  => 'nullable|date',
+        'langue_preferee' => 'nullable|string|max:10',
+        'domaines_cibles' => 'nullable|array',
+        'technologies'    => 'nullable|array',
+        'photo_profil'    => 'nullable|image|max:5120',
+    ]);
 
-        $user->update($validated);
-
-        return response()->json([
-            'message' => 'Utilisateur modifié avec succès',
-            'user'    => $this->formatUser($user->fresh()),
-        ]);
+    // ✅ Upload photo si fournie
+    if ($request->hasFile('photo_profil')) {
+        if ($user->photo_profil) {
+            Storage::disk('public')->delete($user->photo_profil);
+        }
+        $path = $request->file('photo_profil')->store('photos_profil', 'public');
+        $user->photo_profil = $path;
     }
+
+    // Champs texte
+    if (isset($validated['prenom']))          $user->prenom          = $validated['prenom'];
+    if (isset($validated['nom']))             $user->nom             = $validated['nom'];
+    if (isset($validated['email']))           $user->email           = $validated['email'];
+    if (isset($validated['role']))            $user->role            = $validated['role'];
+    if (array_key_exists('telephone', $validated))       $user->telephone       = $validated['telephone'];
+    if (array_key_exists('date_naissance', $validated))  $user->date_naissance  = $validated['date_naissance'];
+    if (array_key_exists('langue_preferee', $validated)) $user->langue_preferee = $validated['langue_preferee'];
+
+    $user->save();
+
+    // ✅ Mettre à jour apprenant si applicable
+    if ($user->role === 'apprenant' && $user->apprenant) {
+        if (array_key_exists('domaines_cibles', $validated))
+            $user->apprenant->domaines_cibles = $validated['domaines_cibles'];
+        if (array_key_exists('technologies', $validated))
+            $user->apprenant->technologies = $validated['technologies'];
+        $user->apprenant->save();
+    }
+
+    return response()->json([
+        'message' => 'Utilisateur modifié avec succès',
+        'user'    => $this->formatUser($user->fresh()),
+    ]);
+}
 
     // ─── US 1.7 (admin) : Supprimer un utilisateur ────────
     public function destroy(Request $request, $id)
