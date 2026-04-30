@@ -13,6 +13,8 @@ use App\Http\Controllers\Api\CertificatController;
 use App\Http\Controllers\Api\NotificationController;
 use App\Http\Controllers\Api\ReportController;
 use App\Http\Controllers\Api\DashboardController;
+use App\Http\Controllers\Api\MessageController;
+use App\Http\Controllers\Api\FeedbackController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
@@ -165,9 +167,24 @@ Route::get('/dashboard/ia-stats',                  [DashboardController::class, 
 Route::get('/dashboard/certifications-stats',      [DashboardController::class, 'certificationsStats']);
 Route::get('/dashboard/progression-par-categorie', [DashboardController::class, 'progressionParCategorie']);
 
+// ── Messages ──────────────────────────────────────────────
+Route::get('/messages/inbox',                        [MessageController::class, 'inbox']);
+Route::post('/messages/{id}/react',                  [MessageController::class, 'react']);
+Route::delete('/messages/{id}',                      [MessageController::class, 'destroy']);
+Route::get('/formations/{id}/messages',              [MessageController::class, 'index']);
+Route::post('/formations/{id}/messages',             [MessageController::class, 'store']);
+Route::post('/formations/{id}/messages/block',       [MessageController::class, 'blockUser']);
+Route::delete('/formations/{id}/messages/unblock',   [MessageController::class, 'unblockUser']);
+
+
+Route::post('/formations/{id}/feedbacks',          [FeedbackController::class, 'store']);
+Route::get('/formations/{id}/feedbacks/mon-feedback', [FeedbackController::class, 'monFeedback']);
+ Route::delete('/feedbacks/{id}', [FeedbackController::class, 'destroy']);
+    Route::put('/feedbacks/{id}', [FeedbackController::class, 'update']);
+
 });
 
-
+Route::get('/formations/{id}/feedbacks',           [FeedbackController::class, 'index']);
 
 Route::post('/test-glm-correction', function (Request $request, GlmCorrectionService $glm) {
     $data = $request->validate([

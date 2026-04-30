@@ -132,7 +132,7 @@ public function instructors()
         'statut'                   => 'nullable|in:brouillon,publie',
         // ✅ Formations codées
         'is_coded'                 => 'nullable|boolean',
-        'code'                     => 'nullable|string|size:8|unique:formations,code',
+        'code' => 'nullable|string|min:8|max:12',
         'prerequis_formation_ids'  => 'nullable|array',
         'prerequis_formation_ids.*'=> 'exists:formations,id',
     ]);
@@ -145,6 +145,17 @@ public function instructors()
 
     // ✅ Vérifier le droit de créer des formations codées
     $isCoded = filter_var($request->input('is_coded'), FILTER_VALIDATE_BOOLEAN);
+    
+    if ($isCoded && $request->code) {
+    $codeExiste = Formation::where('code', $request->code)->exists();
+
+    if ($codeExiste) {
+        return response()->json([
+            'message' => 'Ce code est déjà utilisé.'
+        ], 422);
+    }
+}
+
     if ($isCoded) {
         $aLeDroit = $user->role === 'admin' || ($user->role === 'formateur' && $user->peut_coder);
         if (!$aLeDroit) {
@@ -154,8 +165,7 @@ public function instructors()
         }
         if (!$request->input('code')) {
             return response()->json([
-                'message' => 'Un code de 8 caractères est obligatoire.',
-            ], 422);
+                'message' => 'Un code entre 8 et 12 caractères est obligatoire.',            ], 422);
         }
     }
 
@@ -171,8 +181,7 @@ public function instructors()
         'formateur_id'  => $user->id,
         // ✅ Champs codés
         'is_coded'      => $isCoded,
-        'code'          => $isCoded ? strtoupper($request->input('code')) : null,
-    ]);
+        'code' => $isCoded ? $request->input('code') : null,    ]);
 
     // ✅ Attacher les formations prérequises
     if ($isCoded && $request->has('prerequis_formation_ids')) {
@@ -365,14 +374,17 @@ public function instructors()
             ])->toArray()
             : [],
         'est_inscrit'           => in_array($f->id, $inscriptionsUtilisateur),
+        'a_acces' => $this->verifierAccesUtilisateur($f,auth('sanctum')->user()),
         'created_at'            => $f->created_at?->toISOString(),
     ];
+
+    
 }
     // ─── Vérifier le code d'accès ─────────────────────────
 public function verifierCode(Request $request, $id)
 {
     $request->validate([
-        'code' => 'required|string|size:8',
+       'code' => 'required|string|min:8|max:12',
     ]);
 
     $user      = $request->user();
@@ -429,6 +441,18 @@ public function verifierAcces(Request $request, $id)
         // ✅ Informe le frontend si c'est le propriétaire
         'est_proprietaire'     => $user->role === 'formateur' && $formation->formateur_id === $user->id,
     ]);
+}
+
+private function verifierAccesUtilisateur($formation, $user): bool
+{
+    if (!$user) return false;
+    if (!$formation->is_coded) return true;
+    if ($user->role === 'admin') return true;
+    if ($formation->formateur_id === $user->id) return true;
+
+    return \App\Models\FormationAccesCode::where('formation_id', $formation->id)
+        ->where('user_id', $user->id)
+        ->exists();
 }
 
 }

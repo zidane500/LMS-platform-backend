@@ -82,43 +82,40 @@ public function mesFormations(Request $request)
     // ── Apprenant : stats pour ses graphiques ──────────────
     // GET /api/dashboard/apprenant/stats
     public function apprenantStats(Request $request)
-    {
-        $user = $request->user();
+{
+    $user = $request->user();
 
-        // Total formations publiées sur la plateforme
-        $totalFormations = Formation::where('statut', 'publie')->count();
+    // ✅ FIX POINT 1 — Inscriptions DE L'UTILISATEUR (pas total plateforme)
+    $totalInscrits = \App\Models\Inscription::where('user_id', $user->id)->count();
 
-        // Formations complétées par l'apprenant
-        $completees = ProgressionFormation::where('user_id', $user->id)
+    $completees = ProgressionFormation::where('user_id', $user->id)
+        ->where('complete', true)
+        ->count();
+
+    $labels = [];
+    $data   = [];
+    for ($i = 11; $i >= 0; $i--) {
+        $mois  = Carbon::now()->subMonths($i);
+        $debut = $mois->copy()->startOfMonth();
+        $fin   = $mois->copy()->endOfMonth();
+
+        $count = ProgressionFormation::where('user_id', $user->id)
             ->where('complete', true)
+            ->whereBetween('updated_at', [$debut, $fin])
             ->count();
 
-        // Formations complétées par mois (12 derniers mois)
-        $labels = [];
-        $data   = [];
-
-        for ($i = 11; $i >= 0; $i--) {
-            $mois  = Carbon::now()->subMonths($i);
-            $debut = $mois->copy()->startOfMonth();
-            $fin   = $mois->copy()->endOfMonth();
-
-            $count = ProgressionFormation::where('user_id', $user->id)
-                ->where('complete', true)
-                ->whereBetween('updated_at', [$debut, $fin])
-                ->count();
-
-            $labels[] = $mois->locale('fr')->isoFormat('MMM YY');
-            $data[]   = $count;
-        }
-
-        return response()->json([
-            'total_formations'       => $totalFormations,
-            'formations_completees'  => $completees,
-            'formations_en_cours'    => $totalFormations - $completees,
-            'labels_mois'            => $labels,
-            'data_mois'              => $data,
-        ]);
+        $labels[] = $mois->locale('fr')->isoFormat('MMM YY');
+        $data[]   = $count;
     }
+
+    return response()->json([
+        'total_formations'      => $totalInscrits,   // ← inscriptions user
+        'formations_completees' => $completees,
+        'formations_en_cours'   => max(0, $totalInscrits - $completees),
+        'labels_mois'           => $labels,
+        'data_mois'             => $data,
+    ]);
+}
 
     public function usersStats(Request $request)
 {
@@ -189,18 +186,19 @@ public function tempsApprentissage(Request $request)
 // ── 2. Enregistrer du temps passé ──────────────────────────────
 // POST /api/formations/{id}/temps
 public function enregistrerTemps(Request $request, $formationId)
-    {
-        $request->validate(['duree_secondes' => 'required|integer|min:1|max:86400']);
-        $user = $request->user();
+{
+    $request->validate(['duree_secondes' => 'required|integer|min:1|max:86400']);
+    $user = $request->user();
 
-        TempsApprentissage::updateOrCreate(
-            ['user_id' => $user->id, 'formation_id' => $formationId],
-            // ✅ FIX : DB:: au lieu de \DB::
-            ['duree_secondes' => DB::raw("duree_secondes + {$request->duree_secondes}")]
-        );
+    // ✅ Fix : utiliser firstOrCreate + increment au lieu de updateOrCreate avec DB::raw
+    $temps = TempsApprentissage::firstOrCreate(
+        ['user_id' => $user->id, 'formation_id' => $formationId],
+        ['duree_secondes' => 0]
+    );
+    $temps->increment('duree_secondes', $request->duree_secondes);
 
-        return response()->json(['message' => 'Temps enregistré']);
-    }
+    return response()->json(['message' => 'Temps enregistré']);
+}
 
 
 // ── 3. Admin : formations nécessitant attention ──────────────────
