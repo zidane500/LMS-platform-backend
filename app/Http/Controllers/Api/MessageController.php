@@ -147,13 +147,19 @@ class MessageController extends Controller
 
     // ── POST /api/formations/{id}/messages ─────────────────
     public function store(Request $request, $formationId)
-    {
-        $user      = $request->user();
-        $formation = Formation::with('formateur')->findOrFail($formationId);
-
-        if (!$this->checkAcces($user, $formation)) {
-            return response()->json(['message' => 'Non autorisé'], 403);
-        }
+{
+    $user = $request->user();
+    
+    // ✅ Admin peut envoyer dans n'importe quelle formation
+    $formation = Formation::findOrFail($formationId);
+    $estProprietaire = $formation->formateur_id === $user->id;
+    $estInscrit = \App\Models\Inscription::where('user_id', $user->id)
+        ->where('formation_id', $formationId)->exists();
+    
+    // ✅ Autorisation : apprenant inscrit, formateur propriétaire, ou ADMIN
+    if (!$estInscrit && !$estProprietaire && $user->role !== 'admin') {
+        return response()->json(['message' => 'Non autorisé'], 403);
+    }
 
         $instructorId = $formation->formateur_id;
 

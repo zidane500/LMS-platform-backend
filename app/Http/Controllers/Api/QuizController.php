@@ -548,6 +548,16 @@ if ($formation) {
     );
 }
 
+// et déclencher les notifications pour les formations codées
+if ($reussi) {
+    \App\Services\CodedFormationService::verifierApresQuizReussi(
+        $user->id,
+        (int) $formationId
+    );
+}
+
+
+
         return response()->json([
             'score' => $scoreTotal,
             'score_max' => $scoreMax,

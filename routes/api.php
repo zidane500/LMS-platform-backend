@@ -166,6 +166,7 @@ Route::get('/dashboard/formations-attention',      [DashboardController::class, 
 Route::get('/dashboard/ia-stats',                  [DashboardController::class, 'iaStats']);
 Route::get('/dashboard/certifications-stats',      [DashboardController::class, 'certificationsStats']);
 Route::get('/dashboard/progression-par-categorie', [DashboardController::class, 'progressionParCategorie']);
+Route::get('/dashboard/certifications-detaillees', [DashboardController::class, 'certificationsDetaillees']);
 
 // ── Messages ──────────────────────────────────────────────
 Route::get('/messages/inbox',                        [MessageController::class, 'inbox']);

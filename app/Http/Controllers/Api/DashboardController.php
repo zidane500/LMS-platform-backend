@@ -382,4 +382,59 @@ public function progressionParCategorie(Request $request)
 }
 
 
+public function certificationsDetaillees(Request $request)
+{
+    $query = \App\Models\Formation::with('formateur')
+        ->where('statut', 'publie');
+
+    // Filtres
+    if ($request->categorie && $request->categorie !== 'all') {
+        $query->where('categorie', $request->categorie);
+    }
+    if ($request->formation_id && $request->formation_id !== 'all') {
+        $query->where('id', $request->formation_id);
+    }
+    if ($request->formateur_id && $request->formateur_id !== 'all') {
+        $query->where('formateur_id', $request->formateur_id);
+    }
+
+    $formations = $query->get();
+
+    $result = $formations->map(function ($f) {
+        $nbInscrits = \App\Models\Inscription::where('formation_id', $f->id)->count();
+        $nbCertifs  = \App\Models\Certificat::where('formation_id', $f->id)->count();
+        return [
+            'id'          => (string) $f->id,
+            'titre'       => $f->titre,
+            'categorie'   => $f->categorie,
+            'is_coded'    => (bool) $f->is_coded,
+            'formateur'   => $f->formateur ? $f->formateur->prenom . ' ' . $f->formateur->nom : 'N/A',
+            'formateur_id'=> (string) $f->formateur_id,
+            'nb_inscrits' => $nbInscrits,
+            'nb_certifs'  => $nbCertifs,
+            'taux'        => $nbInscrits > 0 ? round(($nbCertifs / $nbInscrits) * 100) : 0,
+        ];
+    })->values();
+
+    $categories = \App\Models\Formation::where('statut', 'publie')
+        ->distinct()->pluck('categorie')->filter()->values();
+
+    $formateurs = \App\Models\User::whereHas('formations', fn($q) => $q->where('statut', 'publie'))
+        ->get(['id', 'prenom', 'nom'])
+        ->map(fn($u) => ['id' => (string) $u->id, 'nom' => $u->prenom . ' ' . $u->nom]);
+
+    $toutesFormations = \App\Models\Formation::where('statut', 'publie')
+        ->get(['id', 'titre'])->map(fn($f) => ['id' => (string) $f->id, 'titre' => $f->titre]);
+
+    return response()->json([
+        'formations'       => $result,
+        'categories'       => $categories,
+        'formateurs'       => $formateurs,
+        'toutes_formations'=> $toutesFormations,
+        'total_certifs'    => $result->sum('nb_certifs'),
+        'total_inscrits'   => $result->sum('nb_inscrits'),
+    ]);
+}
+
+
 }

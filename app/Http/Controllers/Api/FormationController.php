@@ -132,7 +132,7 @@ public function instructors()
         'statut'                   => 'nullable|in:brouillon,publie',
         // ✅ Formations codées
         'is_coded'                 => 'nullable|boolean',
-        'code' => 'nullable|string|min:8|max:12',
+        'code' => 'nullable|string|min:8|max:8',
         'prerequis_formation_ids'  => 'nullable|array',
         'prerequis_formation_ids.*'=> 'exists:formations,id',
     ]);
@@ -383,6 +383,9 @@ public function instructors()
     // ─── Vérifier le code d'accès ─────────────────────────
 public function verifierCode(Request $request, $id)
 {
+
+
+
     $request->validate([
        'code' => 'required|string|min:8|max:12',
     ]);
@@ -416,30 +419,66 @@ public function verifierCode(Request $request, $id)
 public function verifierAcces(Request $request, $id)
 {
     $user      = $request->user();
-    $formation = Formation::with('prerequisFormations')->findOrFail($id);
+    $formation = Formation::with(['prerequisFormations.modules.quiz'])->findOrFail($id);
 
-    // ✅ Passer le rôle pour que le formateur propriétaire ait accès sans code
-    $aAcces = $formation->userAAcces($user->id, $user->role);
+    $aAcces = $this->verifierAccesUtilisateur($formation, $user);
 
     $prerequisAvecStatut = [];
     if ($formation->is_coded) {
         $certificatsObtenus = \App\Models\Certificat::where('user_id', $user->id)
             ->pluck('formation_id')
+            ->map(fn($id) => (int) $id)
             ->toArray();
 
-        $prerequisAvecStatut = $formation->prerequisFormations->map(fn($p) => [
-            'id'           => (string) $p->id,
-            'titre'        => $p->titre,
-            'a_certificat' => in_array($p->id, $certificatsObtenus),
-        ])->toArray();
+        $progressions = \App\Models\ProgressionFormation::where('user_id', $user->id)
+            ->whereIn('formation_id', $formation->prerequisFormations->pluck('id'))
+            ->get()
+            ->keyBy('formation_id');
+
+        $prerequisAvecStatut = $formation->prerequisFormations->map(function ($p) use (
+            $user, $certificatsObtenus, $progressions
+        ) {
+            $aCertificat = in_array((int) $p->id, $certificatsObtenus);
+            $pourcentage = (int) ($progressions[(int) $p->id]->pourcentage_global ?? 0);
+
+            // ✅ Fix 2 — Vérifier si tous les quiz du prérequis sont réussis
+            $quizIds = $p->modules
+                ->map(fn($m) => optional($m->quiz)->id)
+                ->filter()
+                ->values();
+
+            $tousQuizReussis = true;
+            if ($quizIds->isNotEmpty()) {
+                // Pour chaque quiz, vérifier qu'au moins une tentative est réussie
+                foreach ($quizIds as $quizId) {
+                    $aReussi = \App\Models\TentativeQuiz::where('user_id', $user->id)
+                        ->where('quiz_id', $quizId)
+                        ->where('reussi', true)
+                        ->exists();
+                    if (!$aReussi) {
+                        $tousQuizReussis = false;
+                        break;
+                    }
+                }
+            }
+
+            return [
+                'id'               => (string) $p->id,
+                'titre'            => $p->titre,
+                'a_certificat'     => $aCertificat,
+                'pourcentage'      => $pourcentage,
+                // ✅ Fix 2 — nouveau champ
+                'tous_quiz_reussis'=> $tousQuizReussis,
+            ];
+        })->toArray();
     }
 
     return response()->json([
         'is_coded'             => (bool) $formation->is_coded,
         'a_acces'              => $aAcces,
         'prerequis_formations' => $prerequisAvecStatut,
-        // ✅ Informe le frontend si c'est le propriétaire
-        'est_proprietaire'     => $user->role === 'formateur' && $formation->formateur_id === $user->id,
+        'est_proprietaire'     => $user->role === 'formateur'
+                                  && $formation->formateur_id === $user->id,
     ]);
 }
 
