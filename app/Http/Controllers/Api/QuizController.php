@@ -548,15 +548,18 @@ if ($formation) {
     );
 }
 
-// et déclencher les notifications pour les formations codées
 if ($reussi) {
     \App\Services\CodedFormationService::verifierApresQuizReussi(
         $user->id,
         (int) $formationId
     );
+
+    // ✅ Générer le certificat automatiquement si formation terminée
+    \App\Http\Controllers\Api\CertificatController::genererAutomatiquement(
+        $user->id,
+        (int) $formationId
+    );
 }
-
-
 
         return response()->json([
             'score' => $scoreTotal,

@@ -115,6 +115,60 @@ class CertificatController extends Controller
         ]);
     }
 
+    // ── Génération automatique appelée depuis QuizController ───
+    public static function genererAutomatiquement(int $userId, int $formationId): ?\App\Models\Certificat
+    {
+        $formation = \App\Models\Formation::with(['modules.contenus', 'modules.quiz', 'formateur'])
+            ->find($formationId);
+
+        if (!$formation) return null;
+
+        // Déjà certifié ?
+        $existant = \App\Models\Certificat::where('user_id', $userId)
+            ->where('formation_id', $formationId)
+            ->first();
+        if ($existant) return $existant;
+
+        // Formation terminée (100% + tous quiz réussis) ?
+        if (!\App\Services\CodedFormationService::estFormationTerminee($userId, $formation)) {
+            return null;
+        }
+
+        // Calculer moyenne et mention
+        $quizIds = $formation->modules
+            ->map(fn($m) => optional($m->quiz)->id)
+            ->filter()
+            ->values();
+
+        $moyenne = self::calculerMoyenneStatic($userId, $quizIds->toArray());
+        $mention = self::calculerMentionStatic($moyenne);
+
+        // Créer le certificat
+        $certificat = \App\Models\Certificat::create([
+            'user_id'      => $userId,
+            'formation_id' => $formationId,
+            'numero'       => 'CERT-' . strtoupper(uniqid()),
+            'moyenne'      => $moyenne,
+            'mention'      => $mention,
+            'emis_le'      => now(),
+        ]);
+
+        // ✅ Notification apprenant
+        \App\Services\NotificationService::send(
+            $userId,
+            "Certificat obtenu pour la formation \"{$formation->titre}\" — Mention : {$mention}",
+            'certificat'
+        );
+
+        // ✅ Notification admins
+        \App\Services\NotificationService::notifyAdmins(
+            "📜 Certificat généré — Formation : \"{$formation->titre}\" (Mention : {$mention})",
+            'info'
+        );
+
+        return $certificat;
+    }
+
     // ── Helpers ───────────────────────────────────────────────
     private function calculerMoyenne(int $userId, array $quizIds): float
     {
@@ -165,5 +219,35 @@ class CertificatController extends Controller
             'mention'         => $c->mention,
             'quizScores'      => [],
         ];
+    }
+
+    private static function calculerMoyenneStatic(int $userId, array $quizIds): float
+    {
+        if (empty($quizIds)) return 0;
+
+        $total = 0;
+        $count = 0;
+
+        foreach ($quizIds as $quizId) {
+            $meilleure = \App\Models\TentativeQuiz::where('user_id', $userId)
+                ->where('quiz_id', $quizId)
+                ->orderByDesc('score')
+                ->first();
+
+            if ($meilleure && $meilleure->score_max > 0) {
+                $total += ($meilleure->score / $meilleure->score_max) * 100;
+                $count++;
+            }
+        }
+
+        return $count > 0 ? round($total / $count, 2) : 0;
+    }
+
+    private static function calculerMentionStatic(float $moyenne): string
+    {
+        if ($moyenne >= 95) return 'Excellent';
+        if ($moyenne >= 85) return 'Très Bien';
+        if ($moyenne >= 70) return 'Bien';
+        return 'Passable';
     }
 }

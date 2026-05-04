@@ -387,7 +387,7 @@ public function verifierCode(Request $request, $id)
 
 
     $request->validate([
-       'code' => 'required|string|min:8|max:12',
+       'code' => 'required|string|min:8|max:8',
     ]);
 
     $user      = $request->user();
@@ -419,67 +419,52 @@ public function verifierCode(Request $request, $id)
 public function verifierAcces(Request $request, $id)
 {
     $user      = $request->user();
-    $formation = Formation::with(['prerequisFormations.modules.quiz'])->findOrFail($id);
+    $formation = Formation::with(['prerequisFormations.modules.quiz', 'prerequisFormations.modules.contenus'])
+        ->findOrFail($id);
 
     $aAcces = $this->verifierAccesUtilisateur($formation, $user);
 
     $prerequisAvecStatut = [];
     if ($formation->is_coded) {
-        $certificatsObtenus = \App\Models\Certificat::where('user_id', $user->id)
-            ->pluck('formation_id')
-            ->map(fn($id) => (int) $id)
-            ->toArray();
-
         $progressions = \App\Models\ProgressionFormation::where('user_id', $user->id)
             ->whereIn('formation_id', $formation->prerequisFormations->pluck('id'))
             ->get()
             ->keyBy('formation_id');
 
         $prerequisAvecStatut = $formation->prerequisFormations->map(function ($p) use (
-            $user, $certificatsObtenus, $progressions
+            $user, $progressions
         ) {
-            $aCertificat = in_array((int) $p->id, $certificatsObtenus);
+            $aCertificat = \App\Models\Certificat::where('user_id', $user->id)
+                ->where('formation_id', $p->id)->exists();
+
             $pourcentage = (int) ($progressions[(int) $p->id]->pourcentage_global ?? 0);
 
-            // ✅ Fix 2 — Vérifier si tous les quiz du prérequis sont réussis
-            $quizIds = $p->modules
-                ->map(fn($m) => optional($m->quiz)->id)
-                ->filter()
-                ->values();
-
-            $tousQuizReussis = true;
-            if ($quizIds->isNotEmpty()) {
-                // Pour chaque quiz, vérifier qu'au moins une tentative est réussie
-                foreach ($quizIds as $quizId) {
-                    $aReussi = \App\Models\TentativeQuiz::where('user_id', $user->id)
-                        ->where('quiz_id', $quizId)
-                        ->where('reussi', true)
-                        ->exists();
-                    if (!$aReussi) {
-                        $tousQuizReussis = false;
-                        break;
-                    }
-                }
-            }
+            // ✅ Fix 1 — Utilise le helper partagé
+            $termine = \App\Services\CodedFormationService::estFormationTerminee($user->id, $p);
 
             return [
                 'id'               => (string) $p->id,
                 'titre'            => $p->titre,
                 'a_certificat'     => $aCertificat,
                 'pourcentage'      => $pourcentage,
-                // ✅ Fix 2 — nouveau champ
-                'tous_quiz_reussis'=> $tousQuizReussis,
+                'tous_quiz_reussis'=> $termine,
             ];
         })->toArray();
     }
 
-    return response()->json([
-        'is_coded'             => (bool) $formation->is_coded,
-        'a_acces'              => $aAcces,
-        'prerequis_formations' => $prerequisAvecStatut,
-        'est_proprietaire'     => $user->role === 'formateur'
-                                  && $formation->formateur_id === $user->id,
-    ]);
+   // ✅ Vérifier si le code a déjà été saisi et validé
+$codeDejaValide = \App\Models\FormationAccesCode::where('formation_id', $formation->id)
+    ->where('user_id', $user->id)
+    ->exists();
+
+return response()->json([
+    'is_coded'             => (bool) $formation->is_coded,
+    'a_acces'              => $aAcces,
+    'code_deja_valide'     => $codeDejaValide,  // ← ✅ AJOUTER CETTE LIGNE
+    'prerequis_formations' => $prerequisAvecStatut,
+    'est_proprietaire'     => $user->role === 'formateur'
+                              && $formation->formateur_id === $user->id,
+]);
 }
 
 private function verifierAccesUtilisateur($formation, $user): bool
