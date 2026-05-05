@@ -9,6 +9,7 @@ use App\Models\Formation;
 use App\Models\Inscription;
 use App\Models\User;
 use App\Services\NotificationService;
+use App\Events\MessageSentEvent;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 
@@ -24,7 +25,7 @@ class MessageController extends Controller
     }
 
     // ── Formater un message ─────────────────────────────────
-    private function formatMessage(Message $m, int $currentUserId): array
+    public function formatMessage(Message $m, int $currentUserId): array
     {
         if ($m->is_retracted) {
             return [
@@ -233,6 +234,8 @@ class MessageController extends Controller
             'reactions.user:id,prenom,nom',
         ]);
 
+        event(new MessageSentEvent($message));
+
         // Notifications
         if ($user->id !== $instructorId) {
             NotificationService::send(
@@ -433,4 +436,9 @@ class MessageController extends Controller
 
         return response()->json($result);
     }
+
+    public function formatMessageForBroadcast($message, $currentUserId)
+{
+    return $this->formatMessage($message, $currentUserId);
+}
 }
