@@ -15,6 +15,7 @@ use App\Http\Controllers\Api\ReportController;
 use App\Http\Controllers\Api\DashboardController;
 use App\Http\Controllers\Api\MessageController;
 use App\Http\Controllers\Api\FeedbackController;
+use App\Http\Controllers\Api\CallController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
@@ -180,8 +181,18 @@ Route::delete('/formations/{id}/messages/unblock',   [MessageController::class, 
 
 Route::post('/formations/{id}/feedbacks',          [FeedbackController::class, 'store']);
 Route::get('/formations/{id}/feedbacks/mon-feedback', [FeedbackController::class, 'monFeedback']);
- Route::delete('/feedbacks/{id}', [FeedbackController::class, 'destroy']);
-    Route::put('/feedbacks/{id}', [FeedbackController::class, 'update']);
+Route::delete('/feedbacks/{id}', [FeedbackController::class, 'destroy']);
+Route::put('/feedbacks/{id}', [FeedbackController::class, 'update']);
+
+    // ── WebRTC Signaling ──────────────────────────────────────
+    Route::prefix('calls')->group(function () {
+    Route::post('/voice-offer',   [CallController::class, 'voiceOffer']);
+    Route::post('/video-offer',   [CallController::class, 'videoOffer']);
+    Route::post('/answer',        [CallController::class, 'answer']);
+    Route::post('/ice-candidate', [CallController::class, 'iceCandidate']);
+    Route::post('/end',           [CallController::class, 'endCall']);
+    Route::post('/reject',        [CallController::class, 'rejectCall']);
+});
 
 });
 
