@@ -84,7 +84,7 @@ class CodedFormationService
 
                     NotificationService::send(
                         $userId,
-                        "🎉 Félicitations ! Tous les prérequis de \"{$formationCodee->titre}\" sont complétés !\n🔑 Code d'accès : {$formationCodee->code}\n\nRendez-vous sur la formation et entrez ce code pour y accéder.",
+                        "🎉 Félicitations ! Tous les prérequis de \"{$formationCodee->titre}\" sont complétés !\n🔑 Code d'accès : {$formationCodee->code}.",
                         'info'
                     );
                 } else {
@@ -92,7 +92,7 @@ class CodedFormationService
                     $liste = implode('" et "', $restants);
                     NotificationService::send(
                         $userId,
-                        "📚 Tu es près d'obtenir \"{$formationCodee->titre}\" ! Il te reste : \"{$liste}\".",
+                        "📚 Tu es près d'obtenir la formation \"{$formationCodee->titre}\" ! Il te reste : \"{$liste}\".",
                         'info'
                     );
                 }
