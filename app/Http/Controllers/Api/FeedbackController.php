@@ -28,6 +28,8 @@ class FeedbackController extends Controller
                         : null,
                     'initiale' => mb_strtoupper(mb_substr($f->user->prenom, 0, 1)),
                 ],
+                'reponse_formateur' => $f->reponse_formateur,
+                'repondu_le'        => $f->repondu_le?->diffForHumans(),
             ]);
 
         $moyenne = $feedbacks->avg('note');
@@ -133,6 +135,34 @@ public function destroy(Request $request, $id)
     
     return response()->json([
         'message' => 'Feedback supprimé avec succès'
+    ]);
+}
+public function repondre(Request $request, $id)
+{
+    $user = $request->user();
+    $feedback = \App\Models\Feedback::with('formation')->findOrFail($id);
+
+    // ✅ Seul le propriétaire de la formation ou un admin peut répondre
+    $isAdmin = $user->role === 'admin';
+    $isOwner = $feedback->formation->formateur_id === $user->id;
+
+    if (!$isAdmin && !$isOwner) {
+        return response()->json(['message' => 'Non autorisé'], 403);
+    }
+
+    $request->validate([
+        'reponse' => 'nullable|string|max:1000',
+    ]);
+
+    $feedback->update([
+        'reponse_formateur' => $request->reponse,
+        'repondu_le'        => $request->reponse ? now() : null,
+    ]);
+
+    return response()->json([
+        'message'            => 'Réponse mise à jour',
+        'reponse_formateur'  => $feedback->reponse_formateur,
+        'repondu_le'         => $feedback->repondu_le?->toISOString(),
     ]);
 }
 }

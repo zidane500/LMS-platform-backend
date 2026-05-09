@@ -183,6 +183,7 @@ Route::post('/formations/{id}/feedbacks',          [FeedbackController::class, '
 Route::get('/formations/{id}/feedbacks/mon-feedback', [FeedbackController::class, 'monFeedback']);
 Route::delete('/feedbacks/{id}', [FeedbackController::class, 'destroy']);
 Route::put('/feedbacks/{id}', [FeedbackController::class, 'update']);
+Route::put('/feedbacks/{id}/repondre', [FeedbackController::class, 'repondre']);
 
     // ── WebRTC Signaling ──────────────────────────────────────
     Route::prefix('calls')->group(function () {
