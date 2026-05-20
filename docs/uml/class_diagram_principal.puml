@@ -1,0 +1,220 @@
+@startuml
+title Diagramme de classes principal - LMS
+skinparam classAttributeIconSize 0
+skinparam classFontStyle bold
+skinparam backgroundColor #FFFFFF
+left to right direction
+
+class Badge {
+  + code
+  + nom
+  + description
+  + icone
+  + condition
+}
+
+class BadgeUtilisateur {
+  + user_id
+  + badge_id
+  + formation_id
+  + obtenu_le
+}
+
+class Certificat {
+  + numero
+  + user_id
+  + formation_id
+  + moyenne
+  + mention
+  + emis_le
+}
+
+class ChoixReponse {
+  + question_id
+  + texte
+  + est_correct
+  + ordre
+}
+
+class Contenu {
+  + module_id
+  + titre
+  + type
+  + url
+  + chemin_fichier
+  + duree
+  + resume
+  + miniature
+  + ordre
+}
+
+class Feedback {
+  + formation_id
+  + user_id
+  + note
+  + reponse_formateur
+  + repondu_le
+  + commentaire
+}
+
+class Formation {
+  + formateur_id
+  + titre
+  + description
+  + categorie
+  + niveau
+  + duree_estimee
+  + prerequis
+  + miniature
+  + statut
+  + is_coded
+  + code
+}
+
+class Inscription {
+  + user_id
+  + formation_id
+  + date_inscription
+}
+
+class Message {
+  + formation_id
+  + sender_id
+  + receiver_id
+  + contenu
+  + lu_formateur
+  + type
+  + media_url
+  + media_nom
+  + media_mime
+  + reply_to_id
+  + is_retracted
+}
+
+class ModuleFormation {
+  + formation_id
+  + titre
+  + description
+  + duree
+  + ordre
+}
+
+class Notification {
+  + user_id
+  + type
+  + message
+  + lu
+}
+
+class ProgressionContenu {
+  + user_id
+  + contenu_id
+  + complete
+  + pourcentage
+  + derniere_consultation
+}
+
+class ProgressionFormation {
+  + user_id
+  + formation_id
+  + pourcentage_global
+  + modules_completes
+  + contenus_completes
+  + complete
+  + termine_le
+}
+
+class Question {
+  + quiz_id
+  + texte
+  + type
+  + points
+  + ordre
+  + correction_attendue
+}
+
+class Quiz {
+  + module_id
+  + titre
+  + description
+  + seuil_reussite
+  + duree_minutes
+  + nb_tentatives_max
+  + statut
+}
+
+class ReponseApprenant {
+  + tentative_id
+  + question_id
+  + choix_id
+  + reponse_texte
+  + est_correct
+  + score_ia
+  + feedback_ia
+  + points_forts
+  + points_amelioration
+  + points_obtenus
+}
+
+class TentativeQuiz {
+  + quiz_id
+  + user_id
+  + score
+  + score_max
+  + reussi
+  + duree_secondes
+  + termine_le
+}
+
+class User {
+  + prenom
+  + nom
+  + email
+  + mot_de_passe
+  + telephone
+  + date_naissance
+  + photo_profil
+  + langue_preferee
+  + role
+}
+
+Badge "*" -- "*" User : belongsToMany
+BadgeUtilisateur --> Badge : belongsTo
+BadgeUtilisateur --> User : belongsTo
+Certificat --> User : belongsTo
+Certificat --> Formation : belongsTo
+ChoixReponse --> Question : belongsTo
+Contenu --> ModuleFormation : belongsTo
+Contenu "1" --> "*" ProgressionContenu : hasMany
+Feedback --> User : belongsTo
+Feedback --> Formation : belongsTo
+Formation --> User : belongsTo
+Formation "1" --> "*" ModuleFormation : hasMany
+Formation "1" --> "*" Inscription : hasMany
+Inscription --> User : belongsTo
+Inscription --> Formation : belongsTo
+Message --> User : belongsTo
+Message --> Formation : belongsTo
+ModuleFormation --> Formation : belongsTo
+ModuleFormation "1" --> "*" Contenu : hasMany
+ModuleFormation "1" --> "0..1" Quiz : hasOne
+Notification --> User : belongsTo
+ProgressionContenu --> User : belongsTo
+ProgressionContenu --> Contenu : belongsTo
+ProgressionFormation --> User : belongsTo
+ProgressionFormation --> Formation : belongsTo
+Question --> Quiz : belongsTo
+Question "1" --> "*" ChoixReponse : hasMany
+Quiz --> ModuleFormation : belongsTo
+Quiz "1" --> "*" Question : hasMany
+Quiz "1" --> "*" TentativeQuiz : hasMany
+ReponseApprenant --> TentativeQuiz : belongsTo
+ReponseApprenant --> Question : belongsTo
+ReponseApprenant --> ChoixReponse : belongsTo
+TentativeQuiz --> Quiz : belongsTo
+TentativeQuiz --> User : belongsTo
+TentativeQuiz "1" --> "*" ReponseApprenant : hasMany
+User "1" --> "*" Formation : hasMany
+User "1" --> "*" Inscription : hasMany
+
+@enduml

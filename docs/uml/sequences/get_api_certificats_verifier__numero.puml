@@ -1,0 +1,17 @@
+@startuml
+title Séquence - GET /api/certificats/verifier/{numero}
+
+actor Utilisateur
+participant "Frontend React" as Frontend
+participant "CertificatController" as Controller
+database "PostgreSQL" as DB
+
+Utilisateur -> Frontend : Action utilisateur
+Frontend -> Controller : GET /api/certificats/verifier/{numero}
+Controller -> Controller : verifier()
+Controller -> DB : Lecture des données
+DB --> Controller : Résultat
+Controller --> Frontend : Réponse JSON
+Frontend --> Utilisateur : Affichage du résultat
+
+@enduml

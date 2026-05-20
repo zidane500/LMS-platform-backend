@@ -1,0 +1,17 @@
+@startuml
+title Séquence - POST /api/users/profile
+
+actor Utilisateur
+participant "Frontend React" as Frontend
+participant "UserController" as Controller
+database "PostgreSQL" as DB
+
+Utilisateur -> Frontend : Action utilisateur
+Frontend -> Controller : POST /api/users/profile
+Controller -> Controller : updateProfile()
+Controller -> DB : Écriture / modification des données
+DB --> Controller : Résultat
+Controller --> Frontend : Réponse JSON
+Frontend --> Utilisateur : Affichage du résultat
+
+@enduml

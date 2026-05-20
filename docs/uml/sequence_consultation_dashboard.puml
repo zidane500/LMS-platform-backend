@@ -1,0 +1,52 @@
+@startuml
+title Diagramme de séquence - Consultation du dashboard
+
+skinparam backgroundColor #FFFFFF
+skinparam sequence {
+  ArrowColor #334155
+  LifeLineBorderColor #64748B
+  LifeLineBackgroundColor #F8FAFC
+  ParticipantBorderColor #334155
+  ParticipantBackgroundColor #F1F5F9
+  ActorBorderColor #334155
+  ActorBackgroundColor #E0F2FE
+  DatabaseBorderColor #334155
+  DatabaseBackgroundColor #ECFDF5
+}
+
+autonumber
+
+actor "Utilisateur\n(Admin / Formateur / Apprenant)" as Utilisateur
+boundary "Interface React\nDashboard.tsx" as Interface
+control "AuthContext" as AuthContext
+control "DashboardController" as DashboardController
+database "Base de données" as DB
+
+== Accès au dashboard ==
+
+Utilisateur -> Interface : ouvrir le dashboard
+Interface -> AuthContext : vérifier l'utilisateur connecté
+
+alt Utilisateur non authentifié
+    AuthContext --> Interface : aucun utilisateur connecté
+    Interface --> Utilisateur : rediriger vers la page login
+else Utilisateur authentifié
+    AuthContext --> Interface : retourner les informations utilisateur
+
+    Interface -> DashboardController : demander les données du dashboard
+    DashboardController -> DB : récupérer les données selon le rôle
+    DB --> DashboardController : retourner statistiques et informations
+
+    alt Rôle Administrateur
+        DashboardController --> Interface : données globales de la plateforme
+        Interface --> Utilisateur : afficher dashboard administrateur
+    else Rôle Formateur
+        DashboardController --> Interface : données des formations et apprenants
+        Interface --> Utilisateur : afficher dashboard formateur
+    else Rôle Apprenant
+        DashboardController --> Interface : formations, progression, badges et certificats
+        Interface --> Utilisateur : afficher dashboard apprenant
+    end
+end
+
+@enduml

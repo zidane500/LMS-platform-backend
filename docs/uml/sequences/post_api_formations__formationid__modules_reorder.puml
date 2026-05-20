@@ -1,0 +1,17 @@
+@startuml
+title Séquence - POST /api/formations/{formationId}/modules/reorder
+
+actor Utilisateur
+participant "Frontend React" as Frontend
+participant "ModuleController" as Controller
+database "PostgreSQL" as DB
+
+Utilisateur -> Frontend : Action utilisateur
+Frontend -> Controller : POST /api/formations/{formationId}/modules/reorder
+Controller -> Controller : reorder()
+Controller -> DB : Écriture / modification des données
+DB --> Controller : Résultat
+Controller --> Frontend : Réponse JSON
+Frontend --> Utilisateur : Affichage du résultat
+
+@enduml

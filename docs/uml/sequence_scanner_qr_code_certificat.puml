@@ -1,0 +1,62 @@
+@startuml
+title Diagramme de séquence - Scanner QR Code d'un certificat
+
+skinparam backgroundColor #FFFFFF
+skinparam defaultFontSize 16
+skinparam titleFontSize 22
+
+skinparam sequence {
+  ArrowColor #334155
+  LifeLineBorderColor #64748B
+  LifeLineBackgroundColor #F8FAFC
+
+  ParticipantBorderColor #334155
+  ParticipantBackgroundColor #F1F5F9
+  ParticipantFontSize 17
+
+  ActorBorderColor #334155
+  ActorBackgroundColor #E0F2FE
+  ActorFontSize 17
+
+  DatabaseBorderColor #334155
+  DatabaseBackgroundColor #ECFDF5
+  DatabaseFontSize 17
+
+  ArrowFontSize 16
+  NoteFontSize 16
+}
+
+autonumber
+
+actor "Utilisateur externe" as Utilisateur
+boundary "Scanner QR Code" as Scanner
+boundary "Interface React\nVerifyCertificate.tsx" as Interface
+control "CertificatController" as CertificatController
+entity "Modèle Certificat" as Certificat
+database "Base de données\nPostgreSQL" as DB
+
+== Scan du QR Code ==
+
+Utilisateur -> Scanner : scanner le QR Code du certificat
+Scanner -> Interface : ouvrir le lien de vérification\n/verify/{numero}
+
+== Vérification du certificat ==
+
+Interface -> CertificatController : demander la vérification du certificat
+CertificatController -> Certificat : rechercher le certificat par numéro
+Certificat -> DB : chercher le certificat correspondant
+DB --> Certificat : résultat de la recherche
+Certificat --> CertificatController : certificat trouvé ou introuvable
+
+alt Certificat introuvable
+    CertificatController --> Interface : retourner certificat non valide
+    Interface --> Utilisateur : afficher message d'erreur
+else Certificat trouvé
+    CertificatController -> DB : récupérer les informations associées
+    DB --> CertificatController : apprenant, formation, moyenne et mention
+
+    CertificatController --> Interface : retourner les informations du certificat
+    Interface --> Utilisateur : afficher certificat valide
+end
+
+@enduml

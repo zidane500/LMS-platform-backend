@@ -1,0 +1,17 @@
+@startuml
+title Séquence - POST /api/certificats/{formationId}
+
+actor Utilisateur
+participant "Frontend React" as Frontend
+participant "CertificatController" as Controller
+database "PostgreSQL" as DB
+
+Utilisateur -> Frontend : Action utilisateur
+Frontend -> Controller : POST /api/certificats/{formationId}
+Controller -> Controller : generer()
+Controller -> DB : Écriture / modification des données
+DB --> Controller : Résultat
+Controller --> Frontend : Réponse JSON
+Frontend --> Utilisateur : Affichage du résultat
+
+@enduml

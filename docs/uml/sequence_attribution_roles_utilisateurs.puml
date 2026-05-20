@@ -1,0 +1,76 @@
+@startuml
+title Diagramme de séquence - Attribution des rôles aux utilisateurs
+
+skinparam backgroundColor #FFFFFF
+skinparam sequence {
+  ArrowColor #334155
+  LifeLineBorderColor #64748B
+  LifeLineBackgroundColor #F8FAFC
+  ParticipantBorderColor #334155
+  ParticipantBackgroundColor #F1F5F9
+  ActorBorderColor #334155
+  ActorBackgroundColor #E0F2FE
+  DatabaseBorderColor #334155
+  DatabaseBackgroundColor #ECFDF5
+}
+
+autonumber
+
+actor "Administrateur" as Admin
+boundary "Interface React\nGestion des utilisateurs" as Interface
+control "UserController" as UserController
+database "Base de données" as DB
+control "NotificationService" as NotificationService
+actor "Utilisateur concerné" as Utilisateur
+
+== Accès à la gestion des utilisateurs ==
+
+Admin -> Interface : ouvrir la page de gestion des utilisateurs
+Interface -> UserController : demander la liste des utilisateurs
+UserController -> DB : récupérer les utilisateurs
+DB --> UserController : liste des utilisateurs
+UserController --> Interface : retourner les utilisateurs
+Interface --> Admin : afficher la liste des utilisateurs
+
+== Sélection et attribution du rôle ==
+
+Admin -> Interface : sélectionner un utilisateur
+Admin -> Interface : choisir un nouveau rôle
+Admin -> Interface : confirmer la modification
+
+Interface -> UserController : envoyer la demande d'attribution du rôle
+
+UserController -> UserController : vérifier les droits de l'administrateur
+
+alt Administrateur non autorisé
+    UserController --> Interface : refuser l'opération
+    Interface --> Admin : afficher message d'erreur
+else Administrateur autorisé
+    UserController -> DB : rechercher l'utilisateur concerné
+    DB --> UserController : utilisateur trouvé ou introuvable
+
+    alt Utilisateur introuvable
+        UserController --> Interface : retourner une erreur
+        Interface --> Admin : afficher utilisateur introuvable
+    else Utilisateur trouvé
+        UserController -> UserController : valider le rôle choisi
+
+        alt Rôle invalide
+            UserController --> Interface : retourner les erreurs de validation
+            Interface --> Admin : afficher rôle invalide
+        else Rôle valide
+            UserController -> DB : mettre à jour le rôle de l'utilisateur
+            DB --> UserController : rôle mis à jour
+
+            UserController -> NotificationService : notifier l'utilisateur concerné
+            NotificationService -> DB : enregistrer la notification
+            DB --> NotificationService : notification enregistrée
+            NotificationService --> Utilisateur : recevoir notification du changement de rôle
+
+            UserController --> Interface : confirmer la modification
+            Interface --> Admin : afficher message de succès
+        end
+    end
+end
+
+@enduml

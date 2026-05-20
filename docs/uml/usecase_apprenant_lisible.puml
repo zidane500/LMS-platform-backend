@@ -1,0 +1,182 @@
+@startuml
+title Description détaillée du CU d'apprenant
+
+top to bottom direction
+
+skinparam backgroundColor #FFFFFF
+skinparam linetype ortho
+skinparam dpi 160
+
+skinparam actor {
+  BorderColor #334155
+  BackgroundColor #E0F2FE
+  FontColor #0F172A
+}
+
+skinparam usecase {
+  BorderColor #7CA7D9
+  BackgroundColor #DCEBFF
+  FontColor #0F172A
+}
+
+skinparam package {
+  BorderColor #94A3B8
+  BackgroundColor #F8FAFC
+  FontColor #0F172A
+}
+
+skinparam rectangle {
+  BorderColor #111827
+  BackgroundColor #FFFFFF
+  FontColor #0F172A
+}
+
+actor "Apprenant" as Apprenant
+
+rectangle "Plateforme LMS" {
+
+  package "1. Gestion du compte" {
+    usecase "Gérer compte" as UC_COMPTE
+    usecase "Se connecter" as UC_CONNECTER
+    usecase "S'inscrire" as UC_INSCRIRE
+    usecase "Réinitialiser\nmot de passe" as UC_RESET
+    usecase "Modifier le profil" as UC_PROFIL
+
+    UC_CONNECTER .> UC_COMPTE : <<extend>>
+    UC_INSCRIRE .> UC_COMPTE : <<extend>>
+    UC_RESET .> UC_COMPTE : <<extend>>
+    UC_PROFIL .> UC_COMPTE : <<extend>>
+
+    UC_CONNECTER -[hidden]down- UC_INSCRIRE
+    UC_INSCRIRE -[hidden]down- UC_RESET
+    UC_RESET -[hidden]down- UC_PROFIL
+  }
+
+  package "2. Accès aux formations" {
+    usecase "Lister les formations" as UC_LISTER
+    usecase "Consulter une formation" as UC_CONSULTER
+    usecase "Rechercher une formation" as UC_RECHERCHER
+    usecase "Recherche par titre" as UC_TITRE
+    usecase "Recherche par catégorie" as UC_CATEGORIE
+    usecase "Recherche par niveau" as UC_NIVEAU
+    usecase "S'inscrire à une formation" as UC_INSCRIPTION
+    usecase "Accéder à une\nformation codée" as UC_CODE
+    usecase "Payer une formation" as UC_PAIEMENT
+
+    UC_CONSULTER .> UC_LISTER : <<extend>>
+    UC_RECHERCHER .> UC_LISTER : <<extend>>
+    UC_TITRE .> UC_RECHERCHER : <<extend>>
+    UC_CATEGORIE .> UC_RECHERCHER : <<extend>>
+    UC_NIVEAU .> UC_RECHERCHER : <<extend>>
+    UC_INSCRIPTION .> UC_CONSULTER : <<extend>>
+    UC_CODE .> UC_CONSULTER : <<extend>>
+    UC_PAIEMENT .> UC_INSCRIPTION : <<extend>>
+
+    UC_CONSULTER -[hidden]down- UC_RECHERCHER
+    UC_RECHERCHER -[hidden]down- UC_INSCRIPTION
+    UC_INSCRIPTION -[hidden]down- UC_CODE
+    UC_CODE -[hidden]down- UC_PAIEMENT
+  }
+
+  package "3. Apprentissage" {
+    usecase "Suivre une formation" as UC_SUIVRE
+    usecase "Consulter les modules" as UC_MODULES
+    usecase "Consulter les contenus" as UC_CONTENUS
+    usecase "Marquer un contenu\ncomme terminé" as UC_TERMINER
+    usecase "Voir la progression" as UC_PROGRESSION
+
+    UC_MODULES .> UC_SUIVRE : <<extend>>
+    UC_CONTENUS .> UC_MODULES : <<extend>>
+    UC_TERMINER .> UC_CONTENUS : <<extend>>
+    UC_PROGRESSION .> UC_SUIVRE : <<extend>>
+
+    UC_MODULES -[hidden]down- UC_CONTENUS
+    UC_CONTENUS -[hidden]down- UC_TERMINER
+    UC_TERMINER -[hidden]down- UC_PROGRESSION
+  }
+
+  package "4. Évaluation" {
+    usecase "Passer une évaluation" as UC_EVALUATION
+    usecase "Passer un quiz" as UC_QUIZ
+    usecase "Répondre QCM" as UC_QCM
+    usecase "Répondre Vrai/Faux" as UC_VF
+    usecase "Répondre question texte" as UC_TEXTE
+    usecase "Recevoir correction IA" as UC_IA
+    usecase "Voir le score obtenu" as UC_SCORE
+
+    UC_QUIZ .> UC_EVALUATION : <<extend>>
+    UC_QCM .> UC_QUIZ : <<extend>>
+    UC_VF .> UC_QUIZ : <<extend>>
+    UC_TEXTE .> UC_QUIZ : <<extend>>
+    UC_IA .> UC_TEXTE : <<extend>>
+    UC_SCORE .> UC_EVALUATION : <<extend>>
+
+    UC_QUIZ -[hidden]down- UC_QCM
+    UC_QCM -[hidden]down- UC_VF
+    UC_VF -[hidden]down- UC_TEXTE
+    UC_TEXTE -[hidden]down- UC_IA
+    UC_IA -[hidden]down- UC_SCORE
+  }
+
+  package "5. Récompenses" {
+    usecase "Consulter récompenses" as UC_RECOMPENSES
+    usecase "Obtenir badge" as UC_BADGE
+    usecase "Obtenir certificat" as UC_CERTIFICAT
+    usecase "Télécharger certificat" as UC_TELECHARGER
+    usecase "Vérifier certificat\npar QR code" as UC_VERIFIER
+
+    UC_BADGE .> UC_RECOMPENSES : <<extend>>
+    UC_CERTIFICAT .> UC_RECOMPENSES : <<extend>>
+    UC_TELECHARGER .> UC_CERTIFICAT : <<extend>>
+    UC_VERIFIER .> UC_CERTIFICAT : <<extend>>
+
+    UC_BADGE -[hidden]down- UC_CERTIFICAT
+    UC_CERTIFICAT -[hidden]down- UC_TELECHARGER
+    UC_TELECHARGER -[hidden]down- UC_VERIFIER
+  }
+
+  package "6. Communication et notifications" {
+    usecase "Communiquer avec\nle formateur" as UC_COMMUNIQUER
+    usecase "Envoyer message" as UC_MESSAGE
+    usecase "Appel vocal" as UC_APPEL_VOCAL
+    usecase "Appel vidéo" as UC_APPEL_VIDEO
+    usecase "Consulter notifications" as UC_NOTIF
+    usecase "Recevoir rappel\nformation non terminée" as UC_RAPPEL
+    usecase "Recevoir code\nformation codée" as UC_CODE_RECU
+    usecase "Envoyer signalement" as UC_SIGNALEMENT
+    usecase "Donner feedback" as UC_FEEDBACK
+
+    UC_MESSAGE .> UC_COMMUNIQUER : <<extend>>
+    UC_APPEL_VOCAL .> UC_COMMUNIQUER : <<extend>>
+    UC_APPEL_VIDEO .> UC_COMMUNIQUER : <<extend>>
+    UC_RAPPEL .> UC_NOTIF : <<extend>>
+    UC_CODE_RECU .> UC_NOTIF : <<extend>>
+    UC_SIGNALEMENT .> UC_NOTIF : <<extend>>
+    UC_FEEDBACK .> UC_COMMUNIQUER : <<extend>>
+
+    UC_MESSAGE -[hidden]down- UC_APPEL_VOCAL
+    UC_APPEL_VOCAL -[hidden]down- UC_APPEL_VIDEO
+    UC_APPEL_VIDEO -[hidden]down- UC_NOTIF
+    UC_NOTIF -[hidden]down- UC_RAPPEL
+    UC_RAPPEL -[hidden]down- UC_CODE_RECU
+    UC_CODE_RECU -[hidden]down- UC_SIGNALEMENT
+    UC_SIGNALEMENT -[hidden]down- UC_FEEDBACK
+  }
+}
+
+Apprenant --> UC_COMPTE
+Apprenant --> UC_LISTER
+Apprenant --> UC_SUIVRE
+Apprenant --> UC_EVALUATION
+Apprenant --> UC_RECOMPENSES
+Apprenant --> UC_COMMUNIQUER
+Apprenant --> UC_NOTIF
+
+UC_COMPTE -[hidden]down- UC_LISTER
+UC_LISTER -[hidden]down- UC_SUIVRE
+UC_SUIVRE -[hidden]down- UC_EVALUATION
+UC_EVALUATION -[hidden]down- UC_RECOMPENSES
+UC_RECOMPENSES -[hidden]down- UC_COMMUNIQUER
+UC_COMMUNIQUER -[hidden]down- UC_NOTIF
+
+@enduml

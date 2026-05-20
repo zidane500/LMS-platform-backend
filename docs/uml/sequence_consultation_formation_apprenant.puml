@@ -1,0 +1,131 @@
+@startuml
+title Diagramme de séquence - Consultation d'une formation par l'apprenant
+
+skinparam backgroundColor #FFFFFF
+skinparam sequence {
+  ArrowColor #334155
+  LifeLineBorderColor #64748B
+  LifeLineBackgroundColor #F8FAFC
+  ParticipantBorderColor #334155
+  ParticipantBackgroundColor #F1F5F9
+  ActorBorderColor #334155
+  ActorBackgroundColor #E0F2FE
+  DatabaseBorderColor #334155
+  DatabaseBackgroundColor #ECFDF5
+}
+
+autonumber
+
+actor "Apprenant" as Apprenant
+boundary "Interface React\nCourses.tsx" as CoursesPage
+boundary "Interface React\nCourseDetail.tsx" as CourseDetail
+control "formationService.ts" as FormationService
+control "contenuService.ts" as ContenuService
+control "progressionService.ts" as ProgressionService
+control "FormationController" as FormationController
+control "ContenuController" as ContenuController
+control "ProgressionController" as ProgressionController
+control "BadgeService" as BadgeService
+database "Base de données\nPostgreSQL" as DB
+boundary "ContentViewer" as ContentViewer
+
+== Accès à la liste des formations ==
+
+Apprenant -> CoursesPage : ouvrir la page des formations
+CoursesPage -> FormationService : getFormations()
+FormationService -> FormationController : GET /api/formations
+FormationController -> DB : SELECT * FROM formations
+DB --> FormationController : liste des formations
+FormationController --> FormationService : réponse JSON
+FormationService --> CoursesPage : formations
+CoursesPage --> Apprenant : afficher les formations disponibles
+
+== Consultation du détail d'une formation ==
+
+Apprenant -> CoursesPage : cliquer sur "Voir le cours"
+CoursesPage -> CourseDetail : navigate(/app/courses/{id})
+CourseDetail -> FormationService : getFormation(formationId)
+FormationService -> FormationController : GET /api/formations/{id}
+FormationController -> DB : rechercher formation, formateur et modules
+DB --> FormationController : formation trouvée
+FormationController --> FormationService : détails formation
+FormationService --> CourseDetail : formation + modules
+CourseDetail --> Apprenant : afficher description, durée, niveau et modules
+
+== Vérification de l'accès de l'apprenant ==
+
+CourseDetail -> FormationService : verifierAccesFormation(formationId)
+FormationService -> FormationController : GET /api/formations/{id}/acces
+FormationController -> DB : vérifier inscription de l'apprenant
+DB --> FormationController : inscription trouvée ou inexistante
+
+alt Formation non accessible
+    FormationController --> FormationService : accès refusé ou code requis
+    FormationService --> CourseDetail : a_acces = false
+    CourseDetail --> Apprenant : afficher message d'inscription ou code requis
+else Formation accessible
+    FormationController --> FormationService : accès autorisé
+    FormationService --> CourseDetail : a_acces = true
+
+    CourseDetail -> ProgressionService : getProgression(formationId)
+    ProgressionService -> ProgressionController : GET /api/progressions/{formationId}
+    ProgressionController -> DB : charger progression formation et contenus
+    DB --> ProgressionController : progression globale et détails
+    ProgressionController --> ProgressionService : données progression
+    ProgressionService --> CourseDetail : progression apprenant
+
+    loop Pour chaque module de la formation
+        CourseDetail -> ContenuService : getContenus(formationId, moduleId)
+        ContenuService -> ContenuController : GET /api/formations/{id}/modules/{moduleId}/contenus
+        ContenuController -> DB : SELECT contenus du module + progression
+        DB --> ContenuController : contenus du module
+        ContenuController --> ContenuService : liste des contenus
+        ContenuService --> CourseDetail : contenus normalisés
+    end
+
+    CourseDetail --> Apprenant : afficher les modules, contenus et progression
+end
+
+== Consultation d'un contenu ==
+
+Apprenant -> CourseDetail : ouvrir un module
+CourseDetail --> Apprenant : afficher les contenus du module
+
+Apprenant -> CourseDetail : cliquer sur un contenu
+CourseDetail -> ContentViewer : afficher le contenu sélectionné
+ContentViewer --> Apprenant : lecture vidéo / PDF / audio / SCORM
+
+== Mise à jour de la progression ==
+
+Apprenant -> ContentViewer : terminer ou consulter le contenu
+ContentViewer -> ContenuController : POST /api/contenus/{id}/progression
+ContenuController -> DB : créer ou mettre à jour progression_contenus
+DB --> ContenuController : progression contenu enregistrée
+
+ContenuController -> ProgressionController : recalculer progression formation
+ProgressionController -> DB : mettre à jour progression_formations
+DB --> ProgressionController : progression globale mise à jour
+
+ContenuController -> BadgeService : vérifier badges obtenus
+BadgeService -> DB : vérifier conditions des badges
+DB --> BadgeService : badges disponibles
+
+alt Badge obtenu
+    BadgeService -> DB : INSERT INTO badges_utilisateurs
+    DB --> BadgeService : badge attribué
+    BadgeService --> ContenuController : nouveau badge
+else Aucun badge obtenu
+    BadgeService --> ContenuController : aucun nouveau badge
+end
+
+ContenuController --> ContentViewer : progression mise à jour
+ContentViewer --> CourseDetail : notifier contenu terminé
+CourseDetail -> ProgressionService : recharger progression
+ProgressionService -> ProgressionController : GET /api/progressions/{formationId}
+ProgressionController -> DB : charger progression actualisée
+DB --> ProgressionController : progression actualisée
+ProgressionController --> ProgressionService : données progression
+ProgressionService --> CourseDetail : nouvelle progression
+CourseDetail --> Apprenant : afficher progression mise à jour
+
+@enduml

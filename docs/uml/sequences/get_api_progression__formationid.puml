@@ -1,0 +1,17 @@
+@startuml
+title Séquence - GET /api/progression/{formationId}
+
+actor Utilisateur
+participant "Frontend React" as Frontend
+participant "ProgressionController" as Controller
+database "PostgreSQL" as DB
+
+Utilisateur -> Frontend : Action utilisateur
+Frontend -> Controller : GET /api/progression/{formationId}
+Controller -> Controller : show()
+Controller -> DB : Lecture des données
+DB --> Controller : Résultat
+Controller --> Frontend : Réponse JSON
+Frontend --> Utilisateur : Affichage du résultat
+
+@enduml

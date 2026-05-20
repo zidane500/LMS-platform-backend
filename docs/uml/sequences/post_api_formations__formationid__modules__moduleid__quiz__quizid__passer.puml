@@ -1,0 +1,17 @@
+@startuml
+title Séquence - POST /api/formations/{formationId}/modules/{moduleId}/quiz/{quizId}/passer
+
+actor Utilisateur
+participant "Frontend React" as Frontend
+participant "QuizController" as Controller
+database "PostgreSQL" as DB
+
+Utilisateur -> Frontend : Action utilisateur
+Frontend -> Controller : POST /api/formations/{formationId}/modules/{moduleId}/quiz/{quizId}/passer
+Controller -> Controller : passer()
+Controller -> DB : Écriture / modification des données
+DB --> Controller : Résultat
+Controller --> Frontend : Réponse JSON
+Frontend --> Utilisateur : Affichage du résultat
+
+@enduml

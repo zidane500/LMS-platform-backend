@@ -1,0 +1,88 @@
+@startuml
+title Diagramme de séquence - Création d'une formation
+
+skinparam backgroundColor #FFFFFF
+skinparam sequence {
+  ArrowColor #334155
+  LifeLineBorderColor #64748B
+  LifeLineBackgroundColor #F8FAFC
+  ParticipantBorderColor #334155
+  ParticipantBackgroundColor #F1F5F9
+  ActorBorderColor #334155
+  ActorBackgroundColor #E0F2FE
+  DatabaseBorderColor #334155
+  DatabaseBackgroundColor #ECFDF5
+}
+
+autonumber
+
+actor "Administrateur / Formateur" as Acteur
+boundary "Interface React\nCreateCourse.tsx" as Interface
+control "FormationController" as FormationController
+entity "Modèle Formation" as Formation
+database "Base de données\nPostgreSQL" as DB
+
+== Accès au formulaire ==
+
+Acteur -> Interface : ouvrir la page de création d'une formation
+Interface -> Interface : vérifier le rôle de l'utilisateur
+
+alt Rôle non autorisé
+    Interface --> Acteur : rediriger vers l'espace principal
+else Administrateur ou formateur
+    Interface --> Acteur : afficher le formulaire de création
+end
+
+== Saisie des informations ==
+
+Acteur -> Interface : remplir les informations de la formation
+note right of Interface
+Titre
+Description
+Catégorie
+Niveau
+Durée estimée
+Statut
+Prérequis
+Miniature
+end note
+
+Acteur -> Interface : cliquer sur Créer la formation
+Interface -> Interface : vérifier les champs obligatoires
+
+alt Champs invalides
+    Interface --> Acteur : afficher les erreurs de saisie
+else Champs valides
+    Interface -> FormationController : envoyer les données de la formation\nPOST /formations
+
+    == Traitement côté serveur ==
+
+    FormationController -> FormationController : vérifier l'utilisateur connecté
+    FormationController -> FormationController : valider les données reçues
+
+    alt Données invalides
+        FormationController --> Interface : retourner les erreurs de validation
+        Interface --> Acteur : afficher les erreurs
+    else Données valides
+        FormationController -> Formation : créer une nouvelle formation
+        Formation -> DB : enregistrer la formation
+        DB --> Formation : formation enregistrée
+        Formation --> FormationController : formation créée
+
+        opt Miniature ajoutée
+            FormationController -> DB : enregistrer le chemin de la miniature
+            DB --> FormationController : miniature associée
+        end
+
+        opt Formation codée activée
+            FormationController -> DB : enregistrer le code et les prérequis
+            DB --> FormationController : accès codé configuré
+        end
+
+        FormationController --> Interface : retourner la formation créée
+        Interface --> Acteur : afficher message de succès
+        Interface --> Acteur : rediriger vers la page de modification
+    end
+end
+
+@enduml

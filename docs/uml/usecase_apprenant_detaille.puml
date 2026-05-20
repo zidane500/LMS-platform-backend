@@ -1,0 +1,195 @@
+@startuml
+title Description détaillée du CU d'apprenant
+
+left to right direction
+
+skinparam backgroundColor #FFFFFF
+
+skinparam actor {
+  BorderColor #334155
+  BackgroundColor #E0F2FE
+  FontColor #0F172A
+}
+
+skinparam usecase {
+  BorderColor #7CA7D9
+  BackgroundColor #DCEBFF
+  FontColor #0F172A
+}
+
+skinparam rectangle {
+  BorderColor #000000
+  BackgroundColor #FFFFFF
+  FontColor #0F172A
+}
+
+actor "Apprenant" as Apprenant
+
+rectangle "Description détaillée du CU d'apprenant" {
+
+  ' =========================
+  ' Cas global : Gérer compte
+  ' =========================
+  usecase "Gérer compte" as UC_GERER_COMPTE
+  usecase "Se connecter" as UC_CONNECTER
+  usecase "S'inscrire" as UC_INSCRIRE
+  usecase "Réinitialiser\nle mot de passe" as UC_RESET
+  usecase "Modifier le profil" as UC_PROFIL
+
+  ' =========================
+  ' Cas global : Demander rôle formateur
+  ' =========================
+  usecase "Demander rôle\nFormateur" as UC_DEMANDER_ROLE
+  usecase "Remplir le formulaire\nde demande" as UC_FORMULAIRE_DEMANDE
+
+  ' =========================
+  ' Cas global : Lister les formations
+  ' =========================
+  usecase "Lister les formations" as UC_LISTER_FORMATIONS
+  usecase "Consulter une formation" as UC_CONSULTER_FORMATION
+  usecase "Rechercher une formation" as UC_RECHERCHER_FORMATION
+  usecase "Recherche par titre" as UC_RECHERCHE_TITRE
+  usecase "Recherche par catégorie" as UC_RECHERCHE_CATEGORIE
+  usecase "Recherche par niveau" as UC_RECHERCHE_NIVEAU
+
+  ' =========================
+  ' Cas global : Dashboard apprenant
+  ' =========================
+  usecase "Consulter le dashboard\nd'apprenant" as UC_DASHBOARD
+  usecase "Voir formations\nen cours / terminées" as UC_FORMATIONS_STATUT
+  usecase "Voir progression" as UC_VOIR_PROGRESSION
+  usecase "Voir badges obtenus" as UC_VOIR_BADGES
+
+  ' =========================
+  ' Cas global : Suivre une formation
+  ' =========================
+  usecase "Suivre une formation" as UC_SUIVRE_FORMATION
+  usecase "Consulter les modules" as UC_MODULES
+  usecase "Consulter les contenus" as UC_CONTENUS
+  usecase "Marquer contenu\ncomme terminé" as UC_TERMINER_CONTENU
+  usecase "Accéder à une\nformation codée" as UC_CODE
+  usecase "Payer une formation" as UC_PAYER
+
+  ' =========================
+  ' Cas global : Évaluation
+  ' =========================
+  usecase "Passer une évaluation" as UC_EVALUATION
+  usecase "Passer un quiz" as UC_QUIZ
+  usecase "Répondre QCM" as UC_QCM
+  usecase "Répondre Vrai/Faux" as UC_VRAI_FAUX
+  usecase "Répondre question texte" as UC_TEXTE
+  usecase "Recevoir correction IA" as UC_IA
+  usecase "Voir score obtenu" as UC_SCORE
+
+  ' =========================
+  ' Cas global : Certificats et badges
+  ' =========================
+  usecase "Consulter récompenses" as UC_RECOMPENSES
+  usecase "Obtenir badge" as UC_BADGE
+  usecase "Obtenir certificat" as UC_CERTIFICAT
+  usecase "Télécharger certificat" as UC_TELECHARGER_CERTIF
+  usecase "Vérifier certificat\npar QR code" as UC_VERIFIER_CERTIF
+
+  ' =========================
+  ' Cas global : Communication
+  ' =========================
+  usecase "Communiquer avec\nle formateur" as UC_COMMUNIQUER
+  usecase "Envoyer message" as UC_MESSAGE
+  usecase "Appel vocal" as UC_APPEL_VOCAL
+  usecase "Appel vidéo" as UC_APPEL_VIDEO
+
+  ' =========================
+  ' Cas global : Notifications et signalement
+  ' =========================
+  usecase "Consulter notifications" as UC_NOTIFICATIONS
+  usecase "Recevoir rappel\nformation non terminée" as UC_RAPPEL
+  usecase "Recevoir code\nformation codée" as UC_RECEVOIR_CODE
+  usecase "Envoyer signalement" as UC_SIGNALEMENT
+  usecase "Donner feedback" as UC_FEEDBACK
+}
+
+' =========================
+' Relations acteur -> cas globaux
+' =========================
+Apprenant --> UC_GERER_COMPTE
+Apprenant --> UC_DEMANDER_ROLE
+Apprenant --> UC_LISTER_FORMATIONS
+Apprenant --> UC_DASHBOARD
+Apprenant --> UC_SUIVRE_FORMATION
+Apprenant --> UC_EVALUATION
+Apprenant --> UC_RECOMPENSES
+Apprenant --> UC_COMMUNIQUER
+Apprenant --> UC_NOTIFICATIONS
+
+' =========================
+' Raffinements du compte
+' =========================
+UC_CONNECTER .> UC_GERER_COMPTE : <<extend>>
+UC_INSCRIRE .> UC_GERER_COMPTE : <<extend>>
+UC_RESET .> UC_GERER_COMPTE : <<extend>>
+UC_PROFIL .> UC_GERER_COMPTE : <<extend>>
+
+' =========================
+' Raffinements demande rôle formateur
+' =========================
+UC_FORMULAIRE_DEMANDE .> UC_DEMANDER_ROLE : <<extend>>
+
+' =========================
+' Raffinements formations
+' =========================
+UC_CONSULTER_FORMATION .> UC_LISTER_FORMATIONS : <<extend>>
+UC_RECHERCHER_FORMATION .> UC_LISTER_FORMATIONS : <<extend>>
+UC_RECHERCHE_TITRE .> UC_RECHERCHER_FORMATION : <<extend>>
+UC_RECHERCHE_CATEGORIE .> UC_RECHERCHER_FORMATION : <<extend>>
+UC_RECHERCHE_NIVEAU .> UC_RECHERCHER_FORMATION : <<extend>>
+
+' =========================
+' Raffinements dashboard
+' =========================
+UC_FORMATIONS_STATUT .> UC_DASHBOARD : <<extend>>
+UC_VOIR_PROGRESSION .> UC_DASHBOARD : <<extend>>
+UC_VOIR_BADGES .> UC_DASHBOARD : <<extend>>
+
+' =========================
+' Raffinements suivi formation
+' =========================
+UC_MODULES .> UC_SUIVRE_FORMATION : <<extend>>
+UC_CONTENUS .> UC_SUIVRE_FORMATION : <<extend>>
+UC_TERMINER_CONTENU .> UC_CONTENUS : <<extend>>
+UC_CODE .> UC_SUIVRE_FORMATION : <<extend>>
+UC_PAYER .> UC_SUIVRE_FORMATION : <<extend>>
+
+' =========================
+' Raffinements évaluation
+' =========================
+UC_QUIZ .> UC_EVALUATION : <<extend>>
+UC_QCM .> UC_QUIZ : <<extend>>
+UC_VRAI_FAUX .> UC_QUIZ : <<extend>>
+UC_TEXTE .> UC_QUIZ : <<extend>>
+UC_IA .> UC_TEXTE : <<extend>>
+UC_SCORE .> UC_EVALUATION : <<extend>>
+
+' =========================
+' Raffinements récompenses
+' =========================
+UC_BADGE .> UC_RECOMPENSES : <<extend>>
+UC_CERTIFICAT .> UC_RECOMPENSES : <<extend>>
+UC_TELECHARGER_CERTIF .> UC_CERTIFICAT : <<extend>>
+UC_VERIFIER_CERTIF .> UC_CERTIFICAT : <<extend>>
+
+' =========================
+' Raffinements communication
+' =========================
+UC_MESSAGE .> UC_COMMUNIQUER : <<extend>>
+UC_APPEL_VOCAL .> UC_COMMUNIQUER : <<extend>>
+UC_APPEL_VIDEO .> UC_COMMUNIQUER : <<extend>>
+
+' =========================
+' Raffinements notifications
+' =========================
+UC_RAPPEL .> UC_NOTIFICATIONS : <<extend>>
+UC_RECEVOIR_CODE .> UC_NOTIFICATIONS : <<extend>>
+UC_SIGNALEMENT .> UC_NOTIFICATIONS : <<extend>>
+UC_FEEDBACK .> UC_NOTIFICATIONS : <<extend>>
+
+@enduml

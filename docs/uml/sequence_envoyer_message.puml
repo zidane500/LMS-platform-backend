@@ -1,0 +1,110 @@
+@startuml
+title Diagramme de séquence - Envoyer un message
+
+skinparam backgroundColor #FFFFFF
+skinparam defaultFontSize 16
+skinparam titleFontSize 22
+
+skinparam sequence {
+  ArrowColor #334155
+  LifeLineBorderColor #64748B
+  LifeLineBackgroundColor #F8FAFC
+
+  ParticipantBorderColor #334155
+  ParticipantBackgroundColor #F1F5F9
+  ParticipantFontSize 17
+
+  ActorBorderColor #334155
+  ActorBackgroundColor #E0F2FE
+  ActorFontSize 17
+
+  DatabaseBorderColor #334155
+  DatabaseBackgroundColor #ECFDF5
+  DatabaseFontSize 17
+
+  ArrowFontSize 16
+  NoteFontSize 16
+}
+
+autonumber
+
+actor "Utilisateur émetteur\n(Apprenant / Formateur)" as Emetteur
+boundary "Interface React\nMessagerie" as Interface
+control "MessageController" as MessageController
+entity "Modèle Formation" as Formation
+entity "Modèle Message" as Message
+database "Base de données\nPostgreSQL" as DB
+control "Service temps réel\nWebSocket / Echo" as Realtime
+actor "Utilisateur destinataire\n(Formateur / Apprenant)" as Destinataire
+
+== Ouverture de la discussion ==
+
+Emetteur -> Interface : ouvrir la discussion d'une formation
+Interface -> MessageController : demander les messages de la formation\nGET /formations/{id}/messages
+MessageController -> DB : rechercher les messages de la formation
+DB --> MessageController : messages trouvés
+MessageController --> Interface : retourner la conversation
+Interface --> Emetteur : afficher les messages
+
+== Saisie du message ==
+
+Emetteur -> Interface : saisir un message
+
+note right of Interface
+Message texte
+ou média éventuel
+ou réponse à un message
+end note
+
+Emetteur -> Interface : cliquer sur Envoyer
+Interface -> Interface : vérifier le contenu du message
+
+alt Message vide ou invalide
+    Interface --> Emetteur : afficher une erreur
+else Message valide
+    Interface -> MessageController : envoyer le message\nPOST /formations/{id}/messages
+
+    == Traitement côté serveur ==
+
+    MessageController -> Formation : vérifier la formation concernée
+    Formation -> DB : rechercher la formation
+    DB --> Formation : formation trouvée ou introuvable
+    Formation --> MessageController : résultat de la recherche
+
+    alt Formation introuvable
+        MessageController --> Interface : retourner une erreur
+        Interface --> Emetteur : afficher formation introuvable
+    else Formation trouvée
+        MessageController -> MessageController : vérifier l'accès à la formation
+
+        alt Accès refusé
+            MessageController --> Interface : refuser l'envoi
+            Interface --> Emetteur : afficher accès refusé
+        else Accès autorisé
+            MessageController -> MessageController : valider les données du message
+
+            alt Données invalides
+                MessageController --> Interface : retourner les erreurs de validation
+                Interface --> Emetteur : afficher les erreurs
+            else Données valides
+                MessageController -> Message : créer le message
+                Message -> DB : enregistrer le message
+                DB --> Message : message enregistré
+                Message --> MessageController : message créé
+
+                opt Média joint
+                    MessageController -> DB : enregistrer les informations du média
+                    DB --> MessageController : média associé au message
+                end
+
+                MessageController -> Realtime : diffuser le nouveau message
+                Realtime --> Destinataire : recevoir le message en temps réel
+
+                MessageController --> Interface : retourner le message envoyé
+                Interface --> Emetteur : afficher le message dans la conversation
+            end
+        end
+    end
+end
+
+@enduml

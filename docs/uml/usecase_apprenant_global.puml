@@ -1,0 +1,135 @@
+@startuml
+title Diagramme de cas d'utilisation - Apprenant
+
+left to right direction
+
+skinparam backgroundColor #FFFFFF
+skinparam actor {
+  BorderColor #334155
+  BackgroundColor #E0F2FE
+  FontColor #0F172A
+}
+
+skinparam usecase {
+  BorderColor #334155
+  BackgroundColor #F8FAFC
+  FontColor #0F172A
+}
+
+skinparam rectangle {
+  BorderColor #64748B
+  BackgroundColor #FFFFFF
+}
+
+actor "Apprenant" as Apprenant
+
+rectangle "Plateforme LMS" {
+
+  package "Gestion du compte" {
+    usecase "Gérer son compte" as UC_COMPTE
+    usecase "Créer un compte" as UC_CREER
+    usecase "Se connecter" as UC_LOGIN
+    usecase "Réinitialiser\nmot de passe" as UC_RESET
+    usecase "Modifier son profil" as UC_PROFIL
+  }
+
+  package "Gestion des formations" {
+    usecase "Consulter les formations" as UC_FORMATIONS
+    usecase "Rechercher une formation" as UC_RECHERCHER
+    usecase "Voir les détails\nd'une formation" as UC_DETAILS
+    usecase "S'inscrire à une formation" as UC_INSCRIPTION
+    usecase "Accéder à une\nformation codée" as UC_CODE
+    usecase "Payer une formation" as UC_PAIEMENT
+  }
+
+  package "Apprentissage" {
+    usecase "Suivre une formation" as UC_SUIVRE
+    usecase "Consulter les modules" as UC_MODULES
+    usecase "Consulter les contenus" as UC_CONTENUS
+    usecase "Marquer un contenu\ncomme terminé" as UC_TERMINER
+    usecase "Suivre sa progression" as UC_PROGRESSION
+  }
+
+  package "Évaluation" {
+    usecase "Passer une évaluation" as UC_EVALUATION
+    usecase "Passer un quiz" as UC_QUIZ
+    usecase "Répondre aux questions\nQCM" as UC_QCM
+    usecase "Répondre aux questions\nVrai/Faux" as UC_VF
+    usecase "Répondre aux questions\ntexte" as UC_TEXTE
+    usecase "Recevoir une correction IA" as UC_IA
+    usecase "Consulter son score" as UC_SCORE
+  }
+
+  package "Valorisation du parcours" {
+    usecase "Valoriser son parcours" as UC_VALORISER
+    usecase "Obtenir des badges" as UC_BADGES
+    usecase "Obtenir un certificat" as UC_CERTIFICAT
+    usecase "Télécharger le certificat" as UC_TELECHARGER
+    usecase "Vérifier un certificat\npar QR code" as UC_VERIFIER
+  }
+
+  package "Communication et notifications" {
+    usecase "Communiquer avec\nle formateur" as UC_COMMUNICATION
+    usecase "Envoyer un message" as UC_MESSAGE
+    usecase "Effectuer un appel\nvocal ou vidéo" as UC_APPEL
+    usecase "Recevoir des notifications" as UC_NOTIF
+    usecase "Recevoir un rappel\nde formation" as UC_RAPPEL
+    usecase "Demander le code\nd'une formation" as UC_DEMANDE_CODE
+    usecase "Envoyer un signalement" as UC_SIGNALEMENT
+    usecase "Donner un feedback\nsur une formation" as UC_FEEDBACK
+  }
+}
+
+' Relations principales entre l'acteur et les cas globaux
+Apprenant --> UC_COMPTE
+Apprenant --> UC_FORMATIONS
+Apprenant --> UC_SUIVRE
+Apprenant --> UC_EVALUATION
+Apprenant --> UC_VALORISER
+Apprenant --> UC_COMMUNICATION
+Apprenant --> UC_NOTIF
+
+' Raffinements - Gestion du compte
+UC_COMPTE .> UC_CREER : <<include>>
+UC_COMPTE .> UC_LOGIN : <<include>>
+UC_COMPTE .> UC_RESET : <<extend>>
+UC_COMPTE .> UC_PROFIL : <<include>>
+
+' Raffinements - Formations
+UC_FORMATIONS .> UC_RECHERCHER : <<include>>
+UC_FORMATIONS .> UC_DETAILS : <<include>>
+UC_FORMATIONS .> UC_INSCRIPTION : <<extend>>
+UC_INSCRIPTION .> UC_LOGIN : <<include>>
+UC_INSCRIPTION .> UC_PAIEMENT : <<extend>>
+UC_DETAILS .> UC_CODE : <<extend>>
+UC_CODE .> UC_DEMANDE_CODE : <<include>>
+
+' Raffinements - Apprentissage
+UC_SUIVRE .> UC_MODULES : <<include>>
+UC_SUIVRE .> UC_CONTENUS : <<include>>
+UC_CONTENUS .> UC_TERMINER : <<extend>>
+UC_SUIVRE .> UC_PROGRESSION : <<include>>
+
+' Raffinements - Évaluation
+UC_EVALUATION .> UC_QUIZ : <<include>>
+UC_QUIZ .> UC_QCM : <<include>>
+UC_QUIZ .> UC_VF : <<include>>
+UC_QUIZ .> UC_TEXTE : <<include>>
+UC_TEXTE .> UC_IA : <<extend>>
+UC_EVALUATION .> UC_SCORE : <<include>>
+
+' Raffinements - Valorisation
+UC_VALORISER .> UC_BADGES : <<extend>>
+UC_VALORISER .> UC_CERTIFICAT : <<extend>>
+UC_CERTIFICAT .> UC_TELECHARGER : <<include>>
+UC_CERTIFICAT .> UC_VERIFIER : <<extend>>
+
+' Raffinements - Communication et notifications
+UC_COMMUNICATION .> UC_MESSAGE : <<include>>
+UC_COMMUNICATION .> UC_APPEL : <<extend>>
+UC_NOTIF .> UC_RAPPEL : <<extend>>
+UC_NOTIF .> UC_DEMANDE_CODE : <<extend>>
+UC_COMMUNICATION .> UC_SIGNALEMENT : <<extend>>
+UC_COMMUNICATION .> UC_FEEDBACK : <<extend>>
+
+@enduml

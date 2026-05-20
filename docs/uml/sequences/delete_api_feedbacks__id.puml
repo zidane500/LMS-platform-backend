@@ -1,0 +1,17 @@
+@startuml
+title Séquence - DELETE /api/feedbacks/{id}
+
+actor Utilisateur
+participant "Frontend React" as Frontend
+participant "FeedbackController" as Controller
+database "PostgreSQL" as DB
+
+Utilisateur -> Frontend : Action utilisateur
+Frontend -> Controller : DELETE /api/feedbacks/{id}
+Controller -> Controller : destroy()
+Controller -> DB : Écriture / modification des données
+DB --> Controller : Résultat
+Controller --> Frontend : Réponse JSON
+Frontend --> Utilisateur : Affichage du résultat
+
+@enduml

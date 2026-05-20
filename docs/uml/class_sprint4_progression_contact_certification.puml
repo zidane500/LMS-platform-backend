@@ -1,0 +1,317 @@
+@startuml
+title Diagramme de classes - Sprint 4 : Progression, contact en temps réel et certification
+
+skinparam backgroundColor #FFFFFF
+skinparam classAttributeIconSize 0
+skinparam linetype ortho
+skinparam dpi 160
+skinparam nodesep 70
+skinparam ranksep 80
+skinparam defaultFontSize 13
+
+skinparam class {
+  BackgroundColor #F8FAFC
+  BorderColor #334155
+  ArrowColor #334155
+  FontColor #0F172A
+  FontSize 12
+}
+
+skinparam package {
+  BackgroundColor #FFFFFF
+  BorderColor #CBD5E1
+  FontColor #0F172A
+  FontStyle bold
+}
+
+left to right direction
+
+' ===================================================
+' 1. CONTEXTE UTILISATEUR ET FORMATION
+' ===================================================
+package "Contexte utilisateur et formation" {
+
+class User {
+  + id : int
+  + prenom : string
+  + nom : string
+  + email : string
+  + role : string
+  --
+  + formations()
+  + inscriptions()
+}
+
+class Formation {
+  + id : int
+  + formateur_id : int
+  + titre : string
+  + description : text
+  + categorie : string
+  + niveau : string
+  + statut : string
+  --
+  + formateur()
+  + modules()
+  + inscriptions()
+}
+
+class Contenu {
+  + id : int
+  + module_id : int
+  + titre : string
+  + type : string
+  + duree : int
+  + ordre : int
+  --
+  + module()
+  + progressions()
+}
+
+}
+
+' ===================================================
+' 2. SUIVI DE LA PROGRESSION
+' ===================================================
+package "Suivi de la progression" {
+
+class ProgressionContenu {
+  + id : int
+  + user_id : int
+  + contenu_id : int
+  + complete : boolean
+  + pourcentage : int
+  + derniere_consultation : datetime
+  --
+  + user()
+  + contenu()
+}
+
+class ProgressionFormation {
+  + id : int
+  + user_id : int
+  + formation_id : int
+  + pourcentage_global : int
+  + modules_completes : int
+  + contenus_completes : int
+  + complete : boolean
+  + termine_le : datetime
+  --
+  + user()
+  + formation()
+}
+
+class Badge {
+  + id : int
+  + code : string
+  + nom : string
+  + description : string
+  + icone : string
+  + condition : string
+  --
+  + utilisateurs()
+}
+
+class BadgeUtilisateur {
+  + id : int
+  + user_id : int
+  + badge_id : int
+  + formation_id : int
+  + obtenu_le : datetime
+  --
+  + user()
+  + badge()
+}
+
+}
+
+' ===================================================
+' 3. CONTACT EN TEMPS RÉEL
+' ===================================================
+package "Contact en temps réel" {
+
+class Message {
+  + id : int
+  + formation_id : int
+  + sender_id : int
+  + receiver_id : int
+  + contenu : text
+  + lu_formateur : boolean
+  + type : string
+  + media_url : string
+  + media_nom : string
+  + media_mime : string
+  + reply_to_id : int
+  + is_retracted : boolean
+  --
+  + sender()
+  + receiver()
+  + formation()
+  + replyTo()
+  + reactions()
+}
+
+class MessageReaction {
+  + id : int
+  + message_id : int
+  + user_id : int
+  + emoji : string
+  --
+  + user()
+  + message()
+}
+
+class MessageBlock {
+  + id : int
+  + formation_id : int
+  + blocked_user_id : int
+  + blocked_by : int
+}
+
+class CallSignalingService <<service>> {
+  + voiceOffer() : void
+  + videoOffer() : void
+  + answer() : void
+  + iceCandidate() : void
+  + endCall() : void
+  + rejectCall() : void
+}
+
+}
+
+' ===================================================
+' 4. CERTIFICATION
+' ===================================================
+package "Certification" {
+
+class Certificat {
+  + id : int
+  + numero : string
+  + user_id : int
+  + formation_id : int
+  + moyenne : float
+  + mention : string
+  + emis_le : datetime
+  --
+  + user()
+  + formation()
+  + generer() : void
+  + telecharger() : void
+  + verifierParNumero(numero : string) : boolean
+}
+
+class Notification {
+  + id : int
+  + user_id : int
+  + type : string
+  + message : string
+  + lu : boolean
+  + created_at : datetime
+  + updated_at : datetime
+  --
+  + user()
+  + marquerCommeLue() : void
+}
+
+}
+
+' ===================================================
+' RELATIONS - PROGRESSION
+' ===================================================
+User "1" --> "0..*" ProgressionContenu : consulte
+Contenu "1" --> "0..*" ProgressionContenu : possède progression
+
+User "1" --> "0..*" ProgressionFormation : suit
+Formation "1" --> "0..*" ProgressionFormation : possède progression
+
+User "1" --> "0..*" BadgeUtilisateur : obtient
+Badge "1" --> "0..*" BadgeUtilisateur : attribué
+Formation "1" --> "0..*" BadgeUtilisateur : lié à
+
+' ===================================================
+' RELATIONS - CONTACT
+' ===================================================
+User "1" --> "0..*" Message : envoie
+User "1" --> "0..*" Message : reçoit
+Formation "1" --> "0..*" Message : discussion
+
+Message "1" *-- "0..*" MessageReaction : contient réactions
+User "1" --> "0..*" MessageReaction : réagit
+
+Formation "1" --> "0..*" MessageBlock : blocages
+User "1" --> "0..*" MessageBlock : utilisateur bloqué
+
+User ..> CallSignalingService : appel vocal / vidéo
+CallSignalingService ..> User : signalisation WebRTC
+
+' ===================================================
+' RELATIONS - CERTIFICATION
+' ===================================================
+User "1" --> "0..*" Certificat : obtient
+Formation "1" --> "0..*" Certificat : valide compétences
+
+User "1" --> "0..*" Notification : reçoit
+Certificat ..> Notification : notification certificat
+BadgeUtilisateur ..> Notification : notification badge
+
+' ===================================================
+' NOTES EXPLICATIVES
+' ===================================================
+
+note bottom of ProgressionFormation
+Utilisée pour afficher :
+- progression globale
+- formation terminée ou non
+- avancement de l'apprenant
+- suivi côté formateur
+end note
+
+note bottom of BadgeUtilisateur
+Permet de valoriser la progression :
+- badge obtenu
+- formation concernée
+- date d'obtention
+end note
+
+note bottom of Message
+Contact en temps réel :
+- message texte
+- média
+- réponse à un message
+- réactions
+- blocage possible
+end note
+
+note right of CallSignalingService
+Service de signalisation pour :
+- appel vocal
+- appel vidéo
+- réponse à l'appel
+- ICE candidate
+- fin ou refus d'appel
+end note
+
+note bottom of Certificat
+Certification :
+- génération automatique
+- téléchargement par l'apprenant
+- vérification publique par numéro / QR Code
+end note
+
+' ===================================================
+' ORGANISATION VISUELLE
+' ===================================================
+User -[hidden]down- Formation
+Formation -[hidden]down- Contenu
+
+ProgressionContenu -[hidden]down- ProgressionFormation
+ProgressionFormation -[hidden]down- Badge
+Badge -[hidden]down- BadgeUtilisateur
+
+Message -[hidden]down- MessageReaction
+MessageReaction -[hidden]down- MessageBlock
+MessageBlock -[hidden]down- CallSignalingService
+
+Certificat -[hidden]down- Notification
+
+@enduml

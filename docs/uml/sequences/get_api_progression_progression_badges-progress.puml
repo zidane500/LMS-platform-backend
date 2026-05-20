@@ -1,0 +1,17 @@
+@startuml
+title Séquence - GET /api/progression/progression/badges-progress
+
+actor Utilisateur
+participant "Frontend React" as Frontend
+participant "ProgressionController" as Controller
+database "PostgreSQL" as DB
+
+Utilisateur -> Frontend : Action utilisateur
+Frontend -> Controller : GET /api/progression/progression/badges-progress
+Controller -> Controller : badgeProgression()
+Controller -> DB : Lecture des données
+DB --> Controller : Résultat
+Controller --> Frontend : Réponse JSON
+Frontend --> Utilisateur : Affichage du résultat
+
+@enduml

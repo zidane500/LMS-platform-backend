@@ -1,0 +1,17 @@
+@startuml
+title Séquence - GET /api/notifications/non-lues
+
+actor Utilisateur
+participant "Frontend React" as Frontend
+participant "NotificationController" as Controller
+database "PostgreSQL" as DB
+
+Utilisateur -> Frontend : Action utilisateur
+Frontend -> Controller : GET /api/notifications/non-lues
+Controller -> Controller : nonLues()
+Controller -> DB : Lecture des données
+DB --> Controller : Résultat
+Controller --> Frontend : Réponse JSON
+Frontend --> Utilisateur : Affichage du résultat
+
+@enduml

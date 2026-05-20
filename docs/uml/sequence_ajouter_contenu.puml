@@ -1,0 +1,116 @@
+@startuml
+title Diagramme de séquence - Ajouter un contenu
+
+skinparam backgroundColor #FFFFFF
+skinparam sequence {
+  ArrowColor #334155
+  LifeLineBorderColor #64748B
+  LifeLineBackgroundColor #F8FAFC
+  ParticipantBorderColor #334155
+  ParticipantBackgroundColor #F1F5F9
+  ActorBorderColor #334155
+  ActorBackgroundColor #E0F2FE
+  DatabaseBorderColor #334155
+  DatabaseBackgroundColor #ECFDF5
+}
+
+autonumber
+
+actor "Administrateur / Formateur" as Acteur
+boundary "Interface React\nEditCourse.tsx" as Interface
+control "ContenuController" as ContenuController
+entity "Modèle Formation" as Formation
+entity "Modèle ModuleFormation" as Module
+entity "Modèle Contenu" as Contenu
+database "Base de données\nPostgreSQL" as DB
+
+== Accès au module ==
+
+Acteur -> Interface : ouvrir la formation à modifier
+Interface -> ContenuController : demander les contenus du module
+ContenuController -> DB : rechercher la formation et le module
+DB --> ContenuController : résultat de la recherche
+
+alt Formation ou module introuvable
+    ContenuController --> Interface : retourner une erreur
+    Interface --> Acteur : afficher message d'erreur
+else Formation et module trouvés
+    ContenuController --> Interface : retourner les contenus existants
+    Interface --> Acteur : afficher la liste des contenus
+end
+
+== Ajout du contenu ==
+
+Acteur -> Interface : cliquer sur "Ajouter un contenu"
+Interface --> Acteur : afficher le formulaire d'ajout
+
+Acteur -> Interface : remplir les informations du contenu
+
+note right of Interface
+Titre
+Type
+URL ou fichier
+Durée
+Résumé
+Miniature
+Ordre
+end note
+
+Acteur -> Interface : cliquer sur "Enregistrer"
+Interface -> Interface : vérifier les champs obligatoires
+
+alt Champs invalides
+    Interface --> Acteur : afficher les erreurs de saisie
+else Champs valides
+    Interface -> ContenuController : envoyer les données du contenu\nPOST /formations/{formationId}/modules/{moduleId}/contenus
+
+    ContenuController -> Formation : vérifier la formation concernée
+    Formation -> DB : rechercher la formation
+    DB --> Formation : formation trouvée ou introuvable
+    Formation --> ContenuController : résultat
+
+    alt Formation introuvable
+        ContenuController --> Interface : retourner une erreur
+        Interface --> Acteur : afficher formation introuvable
+    else Formation trouvée
+        ContenuController -> Module : vérifier le module concerné
+        Module -> DB : rechercher le module
+        DB --> Module : module trouvé ou introuvable
+        Module --> ContenuController : résultat
+
+        alt Module introuvable
+            ContenuController --> Interface : retourner une erreur
+            Interface --> Acteur : afficher module introuvable
+        else Module trouvé
+            ContenuController -> ContenuController : vérifier le droit d'ajout
+
+            alt Accès refusé
+                ContenuController --> Interface : refuser l'opération
+                Interface --> Acteur : afficher accès refusé
+            else Accès autorisé
+                ContenuController -> ContenuController : valider les données reçues
+
+                alt Données invalides
+                    ContenuController --> Interface : retourner les erreurs de validation
+                    Interface --> Acteur : afficher les erreurs
+                else Données valides
+                    opt Fichier ou miniature ajouté
+                        ContenuController -> DB : enregistrer le chemin du fichier
+                        DB --> ContenuController : fichier associé
+                    end
+
+                    ContenuController -> Contenu : créer le contenu
+                    Contenu -> DB : enregistrer le contenu
+                    DB --> Contenu : contenu enregistré
+                    Contenu --> ContenuController : contenu créé
+
+                    ContenuController --> Interface : retourner le contenu ajouté
+                    Interface --> Acteur : afficher message de succès
+                    Interface --> Acteur : actualiser la liste des contenus
+                end
+            end
+        end
+    end
+end
+
+@enduml

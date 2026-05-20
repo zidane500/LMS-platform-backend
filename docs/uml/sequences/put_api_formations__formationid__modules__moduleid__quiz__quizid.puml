@@ -1,0 +1,17 @@
+@startuml
+title Séquence - PUT /api/formations/{formationId}/modules/{moduleId}/quiz/{quizId}
+
+actor Utilisateur
+participant "Frontend React" as Frontend
+participant "QuizController" as Controller
+database "PostgreSQL" as DB
+
+Utilisateur -> Frontend : Action utilisateur
+Frontend -> Controller : PUT /api/formations/{formationId}/modules/{moduleId}/quiz/{quizId}
+Controller -> Controller : update()
+Controller -> DB : Écriture / modification des données
+DB --> Controller : Résultat
+Controller --> Frontend : Réponse JSON
+Frontend --> Utilisateur : Affichage du résultat
+
+@enduml

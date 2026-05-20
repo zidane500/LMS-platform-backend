@@ -1,0 +1,17 @@
+@startuml
+title Séquence - GET /api/dashboard/apprenant/stats
+
+actor Utilisateur
+participant "Frontend React" as Frontend
+participant "DashboardController" as Controller
+database "PostgreSQL" as DB
+
+Utilisateur -> Frontend : Action utilisateur
+Frontend -> Controller : GET /api/dashboard/apprenant/stats
+Controller -> Controller : apprenantStats()
+Controller -> DB : Lecture des données
+DB --> Controller : Résultat
+Controller --> Frontend : Réponse JSON
+Frontend --> Utilisateur : Affichage du résultat
+
+@enduml

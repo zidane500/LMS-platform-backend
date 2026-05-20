@@ -1,0 +1,85 @@
+@startuml
+title Diagramme de classes - Apprenant et Formateur
+
+skinparam classAttributeIconSize 0
+skinparam backgroundColor #FFFFFF
+skinparam class {
+  BackgroundColor #F8FAFC
+  BorderColor #334155
+  ArrowColor #334155
+  FontColor #0F172A
+}
+
+left to right direction
+
+class Apprenant {
+  + id : int
+  + user_id : int
+  + prenom : string
+  + nom : string
+  + email : string
+  + mot_de_passe : string
+  + telephone : string
+  + photo_profil : string
+  + role : string
+  + domaines_cibles : array
+  + technologies : array
+  + date_inscription : datetime
+  --
+  + seConnecter(email : string, motDePasse : string) : void
+  + seDeconnecter() : void
+  + consulterDashboard() : void
+  + consulterFormations() : void
+  + consulterFormation(formationId : int) : void
+  + sinscrireFormation(formationId : int) : void
+  + consulterContenu(contenuId : int) : void
+  + marquerContenuTermine(contenuId : int) : void
+  + passerQuiz(quizId : int) : void
+  + consulterProgression(formationId : int) : void
+  + consulterBadges() : void
+  + telechargerCertificat(certificatId : int) : void
+  + envoyerMessage(formateurId : int, message : string) : void
+  + donnerFeedback(formationId : int, note : int, commentaire : string) : void
+  + modifierProfil(prenom : string, email : string, photo : string) : void
+}
+
+class Formateur {
+  + id : int
+  + user_id : int
+  + prenom : string
+  + nom : string
+  + email : string
+  + mot_de_passe : string
+  + telephone : string
+  + photo_profil : string
+  + role : string
+  + specialite : string
+  + experience_annees : int
+  + langues_enseignees : array
+  + statut : string
+  + date_validation : datetime
+  --
+  + seConnecter(email : string, motDePasse : string) : void
+  + seDeconnecter() : void
+  + consulterDashboard() : void
+  + creerFormation(titre : string, description : string, categorie : string) : void
+  + modifierFormation(formationId : int) : void
+  + supprimerFormation(formationId : int) : void
+  + ajouterModule(formationId : int, titre : string) : void
+  + modifierModule(moduleId : int) : void
+  + ajouterContenu(moduleId : int, type : string, titre : string) : void
+  + modifierContenu(contenuId : int) : void
+  + creerQuiz(moduleId : int) : void
+  + modifierQuiz(quizId : int) : void
+  + suivreProgressionApprenants(formationId : int) : void
+  + consulterStatistiques() : void
+  + repondreFeedback(feedbackId : int, reponse : string) : void
+  + envoyerMessage(apprenantId : int, message : string) : void
+  + lancerAppelVocal(apprenantId : int) : void
+  + lancerAppelVideo(apprenantId : int) : void
+  + modifierProfil(prenom : string, email : string, photo : string) : void
+}
+
+Formateur "1" -- "0..*" Apprenant : accompagne / forme
+
+@enduml

@@ -1,0 +1,17 @@
+@startuml
+title Séquence - DELETE /api/formations/{formationId}/modules/{moduleId}
+
+actor Utilisateur
+participant "Frontend React" as Frontend
+participant "ModuleController" as Controller
+database "PostgreSQL" as DB
+
+Utilisateur -> Frontend : Action utilisateur
+Frontend -> Controller : DELETE /api/formations/{formationId}/modules/{moduleId}
+Controller -> Controller : destroy()
+Controller -> DB : Écriture / modification des données
+DB --> Controller : Résultat
+Controller --> Frontend : Réponse JSON
+Frontend --> Utilisateur : Affichage du résultat
+
+@enduml

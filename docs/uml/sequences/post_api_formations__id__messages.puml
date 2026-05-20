@@ -1,0 +1,17 @@
+@startuml
+title Séquence - POST /api/formations/{id}/messages
+
+actor Utilisateur
+participant "Frontend React" as Frontend
+participant "MessageController" as Controller
+database "PostgreSQL" as DB
+
+Utilisateur -> Frontend : Action utilisateur
+Frontend -> Controller : POST /api/formations/{id}/messages
+Controller -> Controller : store()
+Controller -> DB : Écriture / modification des données
+DB --> Controller : Résultat
+Controller --> Frontend : Réponse JSON
+Frontend --> Utilisateur : Affichage du résultat
+
+@enduml

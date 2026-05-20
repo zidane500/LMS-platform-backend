@@ -1,0 +1,83 @@
+@startuml
+title Diagramme de séquence - Contact en temps réel par message ou appel vocal/vidéo
+
+skinparam backgroundColor #FFFFFF
+skinparam sequence {
+  ArrowColor #334155
+  LifeLineBorderColor #64748B
+  LifeLineBackgroundColor #F8FAFC
+  ParticipantBorderColor #334155
+  ParticipantBackgroundColor #F1F5F9
+  ActorBorderColor #334155
+  ActorBackgroundColor #E0F2FE
+  DatabaseBorderColor #334155
+  DatabaseBackgroundColor #ECFDF5
+}
+
+autonumber
+
+actor "Utilisateur émetteur\n(Apprenant/Formateur)" as Emetteur
+boundary "Interface React\nChat / Appel" as InterfaceEmetteur
+control "MessageController" as MessageController
+control "CallController" as CallController
+database "Base de données" as DB
+queue "Laravel Reverb\nWebSocket" as Reverb
+boundary "Interface React\ndestinataire" as InterfaceDestinataire
+actor "Utilisateur destinataire\n(Formateur/Apprenant)" as Destinataire
+
+== Choix du mode de contact ==
+
+Emetteur -> InterfaceEmetteur : ouvrir la discussion
+InterfaceEmetteur --> Emetteur : afficher la conversation
+
+alt Envoi d'un message
+    Emetteur -> InterfaceEmetteur : saisir et envoyer un message
+    InterfaceEmetteur -> MessageController : envoyer le message
+    MessageController -> DB : enregistrer le message
+    DB --> MessageController : message enregistré
+    MessageController -> Reverb : diffuser MessageSentEvent
+    Reverb -> InterfaceDestinataire : notifier nouveau message
+    InterfaceDestinataire --> Destinataire : afficher le message en temps réel
+
+else Appel vocal ou vidéo
+    Emetteur -> InterfaceEmetteur : cliquer sur appel vocal ou vidéo
+    InterfaceEmetteur -> CallController : envoyer une offre d'appel
+    CallController -> Reverb : diffuser l'offre au destinataire
+    Reverb -> InterfaceDestinataire : afficher l'appel entrant
+    InterfaceDestinataire --> Destinataire : notification d'appel
+
+    alt Appel refusé
+        Destinataire -> InterfaceDestinataire : refuser l'appel
+        InterfaceDestinataire -> CallController : envoyer le refus
+        CallController -> Reverb : notifier le refus
+        Reverb -> InterfaceEmetteur : appel refusé
+        InterfaceEmetteur --> Emetteur : afficher appel refusé
+
+    else Appel accepté
+        Destinataire -> InterfaceDestinataire : accepter l'appel
+        InterfaceDestinataire -> CallController : envoyer la réponse d'appel
+        CallController -> Reverb : diffuser la réponse
+        Reverb -> InterfaceEmetteur : réponse reçue
+
+        InterfaceEmetteur -> InterfaceDestinataire : établir connexion WebRTC
+        InterfaceDestinataire -> InterfaceEmetteur : échange audio/vidéo en temps réel
+
+        loop Pendant l'appel
+            InterfaceEmetteur -> CallController : envoyer ICE candidate
+            CallController -> Reverb : transmettre ICE candidate
+            Reverb -> InterfaceDestinataire : recevoir ICE candidate
+
+            InterfaceDestinataire -> CallController : envoyer ICE candidate
+            CallController -> Reverb : transmettre ICE candidate
+            Reverb -> InterfaceEmetteur : recevoir ICE candidate
+        end
+
+        Emetteur -> InterfaceEmetteur : raccrocher
+        InterfaceEmetteur -> CallController : terminer l'appel
+        CallController -> Reverb : notifier fin d'appel
+        Reverb -> InterfaceDestinataire : appel terminé
+        InterfaceDestinataire --> Destinataire : fermer le modal d'appel
+    end
+end
+
+@enduml

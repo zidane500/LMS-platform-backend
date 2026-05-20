@@ -1,0 +1,90 @@
+@startuml
+title Diagramme de séquence - Réinitialisation du mot de passe oublié
+
+skinparam backgroundColor #FFFFFF
+skinparam sequence {
+  ArrowColor #334155
+  LifeLineBorderColor #64748B
+  LifeLineBackgroundColor #F8FAFC
+  ParticipantBorderColor #334155
+  ParticipantBackgroundColor #F1F5F9
+  ActorBorderColor #334155
+  ActorBackgroundColor #E0F2FE
+  DatabaseBorderColor #334155
+  DatabaseBackgroundColor #ECFDF5
+}
+
+autonumber
+
+actor "Utilisateur" as Utilisateur
+boundary "Interface React" as Interface
+control "AuthController" as AuthController
+database "Base de données" as DB
+control "Service Mail" as MailService
+actor "Boîte e-mail" as EmailBox
+
+== Demande de réinitialisation ==
+
+Utilisateur -> Interface : saisir son adresse e-mail
+Utilisateur -> Interface : cliquer sur Mot de passe oublié
+
+Interface -> Interface : vérifier le champ e-mail
+
+alt E-mail invalide
+    Interface --> Utilisateur : afficher une erreur
+else E-mail valide
+    Interface -> AuthController : envoyer la demande de réinitialisation
+
+    AuthController -> DB : rechercher l'e-mail de l'utilisateur
+    DB --> AuthController : utilisateur trouvé ou introuvable
+
+    alt Utilisateur introuvable
+        AuthController --> Interface : retourner une erreur
+        Interface --> Utilisateur : afficher e-mail introuvable
+    else Utilisateur trouvé
+        AuthController -> DB : enregistrer le token de réinitialisation
+        DB --> AuthController : token enregistré
+
+        AuthController -> MailService : envoyer le lien de réinitialisation
+        MailService -> EmailBox : transmettre l'e-mail
+        EmailBox --> Utilisateur : recevoir le lien de réinitialisation
+
+        AuthController --> Interface : confirmer l'envoi du lien
+        Interface --> Utilisateur : afficher message de succès
+    end
+end
+
+== Changement du mot de passe ==
+
+Utilisateur -> EmailBox : ouvrir l'e-mail reçu
+Utilisateur -> Interface : accéder au formulaire de réinitialisation
+Utilisateur -> Interface : saisir le nouveau mot de passe
+Utilisateur -> Interface : confirmer la réinitialisation
+
+Interface -> Interface : vérifier les champs du formulaire
+
+alt Données invalides
+    Interface --> Utilisateur : afficher les erreurs
+else Données valides
+    Interface -> AuthController : envoyer le nouveau mot de passe
+
+    AuthController -> DB : vérifier le token de réinitialisation
+    DB --> AuthController : token valide ou invalide
+
+    alt Token invalide ou expiré
+        AuthController --> Interface : retourner une erreur
+        Interface --> Utilisateur : afficher token invalide ou expiré
+    else Token valide
+        AuthController -> AuthController : sécuriser le nouveau mot de passe
+        AuthController -> DB : mettre à jour le mot de passe
+        DB --> AuthController : mot de passe modifié
+
+        AuthController -> DB : supprimer le token utilisé
+        DB --> AuthController : token supprimé
+
+        AuthController --> Interface : confirmer la réinitialisation
+        Interface --> Utilisateur : afficher succès et rediriger vers Login
+    end
+end
+
+@enduml

@@ -1,0 +1,17 @@
+@startuml
+title Séquence - GET /api/formations/instructors
+
+actor Utilisateur
+participant "Frontend React" as Frontend
+participant "FormationController" as Controller
+database "PostgreSQL" as DB
+
+Utilisateur -> Frontend : Action utilisateur
+Frontend -> Controller : GET /api/formations/instructors
+Controller -> Controller : instructors()
+Controller -> DB : Lecture des données
+DB --> Controller : Résultat
+Controller --> Frontend : Réponse JSON
+Frontend --> Utilisateur : Affichage du résultat
+
+@enduml

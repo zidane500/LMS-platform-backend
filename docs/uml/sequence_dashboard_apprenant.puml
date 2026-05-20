@@ -1,0 +1,83 @@
+@startuml
+title Diagramme de séquence - Consulter le dashboard apprenant
+
+skinparam backgroundColor #FFFFFF
+skinparam defaultFontSize 16
+skinparam titleFontSize 22
+
+skinparam sequence {
+  ArrowColor #334155
+  LifeLineBorderColor #64748B
+  LifeLineBackgroundColor #F8FAFC
+
+  ParticipantBorderColor #334155
+  ParticipantBackgroundColor #F1F5F9
+  ParticipantFontSize 17
+
+  ActorBorderColor #334155
+  ActorBackgroundColor #E0F2FE
+  ActorFontSize 17
+
+  DatabaseBorderColor #334155
+  DatabaseBackgroundColor #ECFDF5
+  DatabaseFontSize 17
+
+  ArrowFontSize 16
+  NoteFontSize 16
+}
+
+autonumber
+
+actor "Apprenant" as Apprenant
+boundary "Interface React\nDashboard.tsx" as Interface
+control "DashboardController" as DashboardController
+database "Base de données\nPostgreSQL" as DB
+
+== Accès au dashboard ==
+
+Apprenant -> Interface : ouvrir le tableau de bord
+Interface -> Interface : vérifier la session utilisateur
+
+alt Utilisateur non connecté
+    Interface --> Apprenant : rediriger vers la page Login
+else Apprenant connecté
+    Interface -> DashboardController : demander les statistiques apprenant\nGET /dashboard/apprenant/stats
+
+    == Récupération des données ==
+
+    DashboardController -> DashboardController : identifier l'apprenant connecté
+
+    DashboardController -> DB : récupérer les inscriptions
+    DB --> DashboardController : formations inscrites
+
+    DashboardController -> DB : récupérer les formations en cours et terminées
+    DB --> DashboardController : état des formations
+
+    DashboardController -> DB : récupérer la progression
+    DB --> DashboardController : pourcentage d'avancement
+
+    DashboardController -> DB : récupérer les résultats des quiz
+    DB --> DashboardController : scores et évolution mensuelle
+
+    == Construction des indicateurs ==
+
+    DashboardController -> DashboardController : calculer les statistiques du dashboard
+
+    note right of DashboardController
+    Statistiques préparées :
+    - formations inscrites
+    - formations en cours
+    - formations complétées
+    - progression globale
+    - évolution mensuelle des résultats
+    end note
+
+    DashboardController --> Interface : retourner les statistiques
+
+    == Affichage du dashboard ==
+
+    Interface -> Interface : préparer les cartes et graphiques
+    Interface --> Apprenant : afficher le dashboard apprenant
+end
+
+@enduml

@@ -1,0 +1,165 @@
+@startuml
+title Description détaillée du CU du Sprint 2
+
+left to right direction
+
+skinparam backgroundColor #FFFFFF
+skinparam dpi 160
+
+skinparam actor {
+  BorderColor #6B7280
+  BackgroundColor #E0F2FE
+  FontColor #111827
+}
+
+skinparam usecase {
+  BorderColor #8AB4E8
+  BackgroundColor #DCEBFF
+  FontColor #111827
+}
+
+skinparam rectangle {
+  BorderColor #000000
+  BackgroundColor #FFFFFF
+  FontColor #111827
+}
+
+actor "Utilisateur" as Utilisateur
+actor "Apprenant" as Apprenant
+actor "Formateur" as Formateur
+actor "Administrateur" as Admin
+
+Apprenant --|> Utilisateur
+Formateur --|> Utilisateur
+
+rectangle "Description détaillée du CU du Sprint 2 : Gestion des formations et modules" {
+
+  ' =========================
+  ' Cas global 1 : Gérer les formations
+  ' =========================
+  usecase "Gérer les formations" as UC_GERER_FORMATIONS
+  usecase "Créer une formation" as UC_CREER_FORMATION
+  usecase "Supprimer une formation" as UC_SUPPRIMER_FORMATION
+  usecase "Définir les informations\nde la formation" as UC_INFOS_FORMATION
+
+  ' =========================
+  ' Cas global 2 : Organiser une formation en modules
+  ' =========================
+  usecase "Organiser une formation\nen modules" as UC_ORGANISER_MODULES
+  usecase "Créer un module" as UC_CREER_MODULE
+  usecase "Modifier un module" as UC_MODIFIER_MODULE
+  usecase "Supprimer un module" as UC_SUPPRIMER_MODULE
+  usecase "Réorganiser l'ordre\ndes modules" as UC_REORGANISER_MODULES
+
+  ' =========================
+  ' Cas global 3 : Rechercher et consulter les formations
+  ' =========================
+  usecase "Rechercher et consulter\nles formations" as UC_RECHERCHER_CONSULTER
+  usecase "Rechercher une formation" as UC_RECHERCHER
+  usecase "Filtrer les formations" as UC_FILTRER
+  usecase "Consulter la fiche\ndétaillée" as UC_FICHE_DETAILLEE
+  usecase "Voir les objectifs" as UC_OBJECTIFS
+  usecase "Voir les conditions\nd'accès" as UC_CONDITIONS
+
+  ' =========================
+  ' Cas global 4 : Gérer les formations codées
+  ' =========================
+  usecase "Gérer les formations\ncodées" as UC_GERER_CODEE
+  usecase "Créer une formation\ncodée" as UC_CREER_CODEE
+  usecase "Générer un code\nd'accès" as UC_GENERER_CODE
+  usecase "Associer des formations\nprérequis" as UC_ASSOCIER_PREREQUIS
+  usecase "Envoyer le code\npar notification" as UC_NOTIFIER_CODE
+
+  ' =========================
+  ' Cas global 5 : Débloquer une formation codée
+  ' =========================
+  usecase "Débloquer une formation\ncodée" as UC_DEBLOQUER_CODEE
+  usecase "Recevoir le code\nd'accès" as UC_RECEVOIR_CODE
+  usecase "Saisir le code\nd'accès" as UC_SAISIR_CODE
+  usecase "Vérifier les prérequis" as UC_VERIFIER_PREREQUIS
+  usecase "Accéder à la formation" as UC_ACCEDER_FORMATION
+}
+
+' =========================
+' Organisation verticale des cas globaux
+' =========================
+UC_GERER_FORMATIONS -[hidden]down- UC_ORGANISER_MODULES
+UC_ORGANISER_MODULES -[hidden]down- UC_RECHERCHER_CONSULTER
+UC_RECHERCHER_CONSULTER -[hidden]down- UC_GERER_CODEE
+UC_GERER_CODEE -[hidden]down- UC_DEBLOQUER_CODEE
+
+' =========================
+' Relations acteurs vers cas globaux
+' =========================
+Admin --> UC_GERER_FORMATIONS
+Admin --> UC_ORGANISER_MODULES
+Admin --> UC_GERER_CODEE
+
+Formateur --> UC_GERER_FORMATIONS
+Formateur --> UC_ORGANISER_MODULES
+Formateur --> UC_GERER_CODEE
+
+Utilisateur --> UC_RECHERCHER_CONSULTER
+Apprenant --> UC_DEBLOQUER_CODEE
+
+' =========================
+' Raffinements : Gérer les formations
+' =========================
+UC_CREER_FORMATION .left.> UC_GERER_FORMATIONS : <<extend>>
+UC_SUPPRIMER_FORMATION .left.> UC_GERER_FORMATIONS : <<extend>>
+UC_INFOS_FORMATION .left.> UC_CREER_FORMATION : <<extend>>
+
+UC_CREER_FORMATION -[hidden]down- UC_SUPPRIMER_FORMATION
+UC_SUPPRIMER_FORMATION -[hidden]down- UC_INFOS_FORMATION
+
+' =========================
+' Raffinements : Organiser une formation en modules
+' =========================
+UC_CREER_MODULE .left.> UC_ORGANISER_MODULES : <<extend>>
+UC_MODIFIER_MODULE .left.> UC_ORGANISER_MODULES : <<extend>>
+UC_SUPPRIMER_MODULE .left.> UC_ORGANISER_MODULES : <<extend>>
+UC_REORGANISER_MODULES .left.> UC_ORGANISER_MODULES : <<extend>>
+
+UC_CREER_MODULE -[hidden]down- UC_MODIFIER_MODULE
+UC_MODIFIER_MODULE -[hidden]down- UC_SUPPRIMER_MODULE
+UC_SUPPRIMER_MODULE -[hidden]down- UC_REORGANISER_MODULES
+
+' =========================
+' Raffinements : Rechercher et consulter les formations
+' =========================
+UC_RECHERCHER .left.> UC_RECHERCHER_CONSULTER : <<extend>>
+UC_FILTRER .left.> UC_RECHERCHER_CONSULTER : <<extend>>
+UC_FICHE_DETAILLEE .left.> UC_RECHERCHER_CONSULTER : <<extend>>
+UC_OBJECTIFS .left.> UC_FICHE_DETAILLEE : <<extend>>
+UC_CONDITIONS .left.> UC_FICHE_DETAILLEE : <<extend>>
+
+UC_RECHERCHER -[hidden]down- UC_FILTRER
+UC_FILTRER -[hidden]down- UC_FICHE_DETAILLEE
+UC_FICHE_DETAILLEE -[hidden]down- UC_OBJECTIFS
+UC_OBJECTIFS -[hidden]down- UC_CONDITIONS
+
+' =========================
+' Raffinements : Gérer les formations codées
+' =========================
+UC_CREER_CODEE .left.> UC_GERER_CODEE : <<extend>>
+UC_GENERER_CODE .left.> UC_CREER_CODEE : <<extend>>
+UC_ASSOCIER_PREREQUIS .left.> UC_CREER_CODEE : <<extend>>
+UC_NOTIFIER_CODE .left.> UC_CREER_CODEE : <<extend>>
+
+UC_CREER_CODEE -[hidden]down- UC_GENERER_CODE
+UC_GENERER_CODE -[hidden]down- UC_ASSOCIER_PREREQUIS
+UC_ASSOCIER_PREREQUIS -[hidden]down- UC_NOTIFIER_CODE
+
+' =========================
+' Raffinements : Débloquer une formation codée
+' =========================
+UC_RECEVOIR_CODE .left.> UC_DEBLOQUER_CODEE : <<extend>>
+UC_SAISIR_CODE .left.> UC_DEBLOQUER_CODEE : <<extend>>
+UC_VERIFIER_PREREQUIS .left.> UC_DEBLOQUER_CODEE : <<extend>>
+UC_ACCEDER_FORMATION .left.> UC_DEBLOQUER_CODEE : <<extend>>
+
+UC_RECEVOIR_CODE -[hidden]down- UC_SAISIR_CODE
+UC_SAISIR_CODE -[hidden]down- UC_VERIFIER_PREREQUIS
+UC_VERIFIER_PREREQUIS -[hidden]down- UC_ACCEDER_FORMATION
+
+@enduml

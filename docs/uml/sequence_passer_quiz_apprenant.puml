@@ -1,0 +1,93 @@
+@startuml
+title Diagramme de séquence - Passage d'un quiz par l'apprenant
+
+skinparam backgroundColor #FFFFFF
+skinparam sequence {
+  ArrowColor #334155
+  LifeLineBorderColor #64748B
+  LifeLineBackgroundColor #F8FAFC
+  ParticipantBorderColor #334155
+  ParticipantBackgroundColor #F1F5F9
+  ActorBorderColor #334155
+  ActorBackgroundColor #E0F2FE
+  DatabaseBorderColor #334155
+  DatabaseBackgroundColor #ECFDF5
+}
+
+autonumber
+
+actor "Apprenant" as Apprenant
+boundary "Interface React\nQuiz.tsx" as Interface
+control "QuizController" as QuizController
+control "Service de correction" as CorrectionService
+control "BadgeService" as BadgeService
+database "Base de données\nPostgreSQL" as DB
+
+== Accès au quiz ==
+
+Apprenant -> Interface : ouvrir le quiz d'un module
+Interface -> QuizController : demander les questions du quiz
+QuizController -> DB : rechercher le quiz et ses questions
+DB --> QuizController : retourner les questions
+QuizController --> Interface : envoyer les questions du quiz
+Interface --> Apprenant : afficher le quiz
+
+== Réponse aux questions ==
+
+Apprenant -> Interface : répondre aux questions
+
+loop Pour chaque question du quiz
+    alt Question QCM
+        Interface -> Interface : enregistrer le choix sélectionné
+    else Question Vrai/Faux
+        Interface -> Interface : enregistrer la réponse vrai ou faux
+    else Question texte
+        Interface -> Interface : enregistrer la réponse rédigée
+    end
+end
+
+== Soumission du quiz ==
+
+Apprenant -> Interface : cliquer sur Soumettre
+Interface -> QuizController : envoyer les réponses du quiz
+
+QuizController -> DB : récupérer les bonnes réponses
+DB --> QuizController : bonnes réponses du quiz
+
+QuizController -> CorrectionService : corriger les réponses
+
+loop Correction des questions
+    alt Question QCM
+        CorrectionService -> CorrectionService : comparer le choix avec la bonne réponse
+    else Question Vrai/Faux
+        CorrectionService -> CorrectionService : comparer vrai/faux avec la bonne réponse
+    else Question texte
+        CorrectionService -> CorrectionService : analyser la réponse texte
+    end
+end
+
+CorrectionService --> QuizController : retourner score et résultat
+
+== Enregistrement du résultat ==
+
+QuizController -> DB : enregistrer la tentative du quiz
+DB --> QuizController : tentative enregistrée
+
+QuizController -> BadgeService : vérifier les badges liés au quiz
+BadgeService -> DB : vérifier les conditions des badges
+DB --> BadgeService : résultat de vérification
+
+alt Badge obtenu
+    BadgeService -> DB : attribuer le badge à l'apprenant
+    DB --> BadgeService : badge enregistré
+    BadgeService --> QuizController : nouveau badge obtenu
+else Aucun badge obtenu
+    BadgeService --> QuizController : aucun nouveau badge
+end
+
+== Affichage du résultat ==
+
+QuizController --> Interface : retourner score, statut et badges
+Interface --> Apprenant : afficher le résultat du quiz
+
+@enduml

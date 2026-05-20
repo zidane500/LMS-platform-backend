@@ -5,7 +5,7 @@ namespace App\Models;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
-use Illuminate\Auth\Notifications\ResetPassword;
+
 
 class User extends Authenticatable
 {
@@ -49,19 +49,11 @@ class User extends Authenticatable
     }
 
 
-    public function sendPasswordResetNotification($token): void
+  public function sendPasswordResetNotification($token): void
 {
-    // ✅ Enregistre l'URL frontend avant d'envoyer la notification
-    \Illuminate\Auth\Notifications\ResetPassword::createUrlUsing(
-        function ($notifiable, $token) {
-            return env('FRONTEND_URL', 'http://localhost:5173')
-                . '/reset-password?token=' . $token
-                . '&email=' . urlencode($notifiable->getEmailForPasswordReset());
-        }
-    );
-
-    $this->notify(new \Illuminate\Auth\Notifications\ResetPassword($token));
+    $this->notify(new \App\Notifications\ResetPasswordNotification($token));
 }
+
 
     // Relations
     public function apprenant()
@@ -90,4 +82,6 @@ class User extends Authenticatable
     {
         return $this->hasMany(Inscription::class);
     }
+
+    
 }

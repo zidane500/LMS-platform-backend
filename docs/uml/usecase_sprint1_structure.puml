@@ -1,0 +1,129 @@
+@startuml
+title Description détaillée du CU du Sprint 1
+
+left to right direction
+
+skinparam backgroundColor #FFFFFF
+skinparam dpi 160
+
+skinparam actor {
+  BorderColor #6B7280
+  BackgroundColor #E0F2FE
+  FontColor #111827
+}
+
+skinparam usecase {
+  BorderColor #8AB4E8
+  BackgroundColor #DCEBFF
+  FontColor #111827
+}
+
+skinparam rectangle {
+  BorderColor #000000
+  BackgroundColor #FFFFFF
+  FontColor #111827
+}
+
+actor "Administrateur" as Admin
+actor "Utilisateur" as Utilisateur
+actor "Apprenant" as Apprenant
+actor "Formateur" as Formateur
+
+' ✅ Correction demandée : Administrateur au-dessus de Utilisateur
+Admin -[hidden]down- Utilisateur
+
+Apprenant --|> Utilisateur
+Formateur --|> Utilisateur
+
+rectangle "Description détaillée du CU du Sprint 1 : Authentification et gestion des utilisateurs" {
+
+  ' =========================
+  ' Cas global 1 : Gérer compte
+  ' =========================
+  usecase "Gérer compte" as UC_GERER_COMPTE
+  usecase "Créer un compte" as UC_CREER_COMPTE
+  usecase "Se connecter" as UC_CONNECTER
+  usecase "Accéder à l'espace\npersonnel selon le rôle" as UC_ESPACE_ROLE
+  usecase "Modifier le profil" as UC_MODIFIER_PROFIL
+
+  ' =========================
+  ' Cas global 2 : Demander rôle formateur
+  ' =========================
+  usecase "Demander rôle\nFormateur" as UC_DEMANDER_ROLE
+  usecase "Remplir le formulaire\nde demande" as UC_REMPLIR_FORMULAIRE
+  usecase "Soumettre la demande" as UC_SOUMETTRE_DEMANDE
+
+  ' =========================
+  ' Cas global 3 : Gérer utilisateurs
+  ' =========================
+  usecase "Gérer les utilisateurs" as UC_GERER_USERS
+  usecase "Attribuer un rôle" as UC_ATTRIBUER_ROLE
+  usecase "Modifier un compte\nutilisateur" as UC_MODIFIER_USER
+  usecase "Supprimer un compte\nutilisateur" as UC_SUPPRIMER_USER
+
+  ' =========================
+  ' Cas global 4 : Traiter demandes formateur
+  ' =========================
+  usecase "Traiter les demandes\nFormateur" as UC_TRAITER_DEMANDES
+  usecase "Consulter les demandes" as UC_CONSULTER_DEMANDES
+  usecase "Valider une demande" as UC_VALIDER_DEMANDE
+  usecase "Refuser une demande" as UC_REFUSER_DEMANDE
+}
+
+' =========================
+' Organisation verticale des cas globaux
+' =========================
+UC_GERER_COMPTE -[hidden]down- UC_DEMANDER_ROLE
+UC_DEMANDER_ROLE -[hidden]down- UC_GERER_USERS
+UC_GERER_USERS -[hidden]down- UC_TRAITER_DEMANDES
+
+' =========================
+' Relations acteurs vers cas globaux
+' =========================
+Utilisateur --> UC_GERER_COMPTE
+Utilisateur --> UC_DEMANDER_ROLE
+
+Admin --> UC_GERER_USERS
+Admin --> UC_TRAITER_DEMANDES
+
+' =========================
+' Raffinements : Gérer compte
+' =========================
+UC_CREER_COMPTE .left.> UC_GERER_COMPTE : <<extend>>
+UC_CONNECTER .left.> UC_GERER_COMPTE : <<extend>>
+UC_ESPACE_ROLE .left.> UC_CONNECTER : <<extend>>
+UC_MODIFIER_PROFIL .left.> UC_GERER_COMPTE : <<extend>>
+
+UC_CREER_COMPTE -[hidden]down- UC_CONNECTER
+UC_CONNECTER -[hidden]down- UC_ESPACE_ROLE
+UC_ESPACE_ROLE -[hidden]down- UC_MODIFIER_PROFIL
+
+' =========================
+' Raffinements : Demander rôle formateur
+' =========================
+UC_REMPLIR_FORMULAIRE .left.> UC_DEMANDER_ROLE : <<extend>>
+UC_SOUMETTRE_DEMANDE .left.> UC_DEMANDER_ROLE : <<extend>>
+
+UC_REMPLIR_FORMULAIRE -[hidden]down- UC_SOUMETTRE_DEMANDE
+
+' =========================
+' Raffinements : Gestion utilisateurs
+' =========================
+UC_ATTRIBUER_ROLE .left.> UC_GERER_USERS : <<extend>>
+UC_MODIFIER_USER .left.> UC_GERER_USERS : <<extend>>
+UC_SUPPRIMER_USER .left.> UC_GERER_USERS : <<extend>>
+
+UC_ATTRIBUER_ROLE -[hidden]down- UC_MODIFIER_USER
+UC_MODIFIER_USER -[hidden]down- UC_SUPPRIMER_USER
+
+' =========================
+' Raffinements : Traitement demandes formateur
+' =========================
+UC_CONSULTER_DEMANDES .left.> UC_TRAITER_DEMANDES : <<extend>>
+UC_VALIDER_DEMANDE .left.> UC_TRAITER_DEMANDES : <<extend>>
+UC_REFUSER_DEMANDE .left.> UC_TRAITER_DEMANDES : <<extend>>
+
+UC_CONSULTER_DEMANDES -[hidden]down- UC_VALIDER_DEMANDE
+UC_VALIDER_DEMANDE -[hidden]down- UC_REFUSER_DEMANDE
+
+@enduml

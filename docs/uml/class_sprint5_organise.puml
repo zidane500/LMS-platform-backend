@@ -1,0 +1,136 @@
+@startuml
+title Diagramme de classes - Sprint 5 : Dashboards et reporting
+
+skinparam backgroundColor #FFFFFF
+skinparam classAttributeIconSize 0
+skinparam linetype polyline
+skinparam dpi 180
+skinparam nodesep 100
+skinparam ranksep 110
+skinparam defaultFontSize 16
+
+skinparam class {
+  BackgroundColor #E8F4F8
+  BorderColor #0078D4
+  ArrowColor #0078D4
+  FontColor #000000
+  FontSize 15
+}
+
+top to bottom direction
+
+class DashboardController <<controller>> {
+  + apprenantStats() : array
+  + mesFormations() : array
+  + inscriptionsParSemaine() : array
+  + usersStats() : array
+  + topFormations() : array
+  + tempsApprentissage() : array
+  + iaStats() : array
+  + certificationsStats() : array
+}
+
+class User {
+  + id : int
+  + prenom : string
+  + nom : string
+  + email : string
+  + role : string
+  --
+  + inscriptions()
+  + formations()
+}
+
+class Formation {
+  + id : int
+  + titre : string
+  + categorie : string
+  + niveau : string
+  + statut : string
+  --
+  + formateur()
+  + inscriptions()
+}
+
+class Inscription {
+  + id : int
+  + user_id : int
+  + formation_id : int
+  + date_inscription : datetime
+  --
+  + user()
+  + formation()
+}
+
+class ProgressionFormation {
+  + id : int
+  + user_id : int
+  + formation_id : int
+  + pourcentage_global : int
+  + complete : boolean
+  --
+  + user()
+  + formation()
+}
+
+class TempsApprentissage {
+  + id : int
+  + user_id : int
+  + formation_id : int
+  + duree_secondes : int
+  --
+  + user()
+  + formation()
+}
+
+class Certificat {
+  + id : int
+  + numero : string
+  + user_id : int
+  + formation_id : int
+  + moyenne : float
+  + mention : string
+  --
+  + user()
+  + formation()
+}
+
+' =========================
+' Organisation visuelle
+' =========================
+DashboardController -[hidden]down- User
+User -[hidden]right- Formation
+
+Inscription -[hidden]right- ProgressionFormation
+ProgressionFormation -[hidden]right- TempsApprentissage
+TempsApprentissage -[hidden]right- Certificat
+
+User -[hidden]down- Inscription
+Formation -[hidden]down- ProgressionFormation
+
+' =========================
+' Relations principales
+' =========================
+User "1" -- "0..*" Inscription : possède
+Formation "1" -- "0..*" Inscription : reçoit
+
+User "1" -- "0..*" ProgressionFormation : suit
+Formation "1" -- "0..*" ProgressionFormation : mesure
+
+User "1" -- "0..*" TempsApprentissage : consacre
+Formation "1" -- "0..*" TempsApprentissage : cumule
+
+User "1" -- "0..*" Certificat : obtient
+Formation "1" -- "0..*" Certificat : délivre
+
+' =========================
+' Dépendances dashboard
+' =========================
+DashboardController ..> User : utilisateurs
+DashboardController ..> Formation : formations
+DashboardController ..> Inscription : inscriptions
+DashboardController ..> ProgressionFormation : progression
+DashboardController ..> TempsApprentissage : temps
+DashboardController ..> Certificat : certifications
+
+@enduml

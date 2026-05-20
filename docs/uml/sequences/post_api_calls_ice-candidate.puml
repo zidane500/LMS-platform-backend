@@ -1,0 +1,17 @@
+@startuml
+title Séquence - POST /api/calls/ice-candidate
+
+actor Utilisateur
+participant "Frontend React" as Frontend
+participant "CallController" as Controller
+database "PostgreSQL" as DB
+
+Utilisateur -> Frontend : Action utilisateur
+Frontend -> Controller : POST /api/calls/ice-candidate
+Controller -> Controller : iceCandidate()
+Controller -> DB : Écriture / modification des données
+DB --> Controller : Résultat
+Controller --> Frontend : Réponse JSON
+Frontend --> Utilisateur : Affichage du résultat
+
+@enduml

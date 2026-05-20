@@ -1,0 +1,17 @@
+@startuml
+title Séquence - GET /api/admin/users
+
+actor Utilisateur
+participant "Frontend React" as Frontend
+participant "UserController" as Controller
+database "PostgreSQL" as DB
+
+Utilisateur -> Frontend : Action utilisateur
+Frontend -> Controller : GET /api/admin/users
+Controller -> Controller : index()
+Controller -> DB : Lecture des données
+DB --> Controller : Résultat
+Controller --> Frontend : Réponse JSON
+Frontend --> Utilisateur : Affichage du résultat
+
+@enduml

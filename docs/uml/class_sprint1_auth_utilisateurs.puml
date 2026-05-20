@@ -1,0 +1,151 @@
+@startuml
+title Diagramme de classes - Sprint 1 : Authentification et gestion des utilisateurs
+
+skinparam backgroundColor #FFFFFF
+skinparam classAttributeIconSize 0
+skinparam linetype ortho
+skinparam dpi 160
+
+skinparam class {
+  BackgroundColor #F8FAFC
+  BorderColor #334155
+  ArrowColor #334155
+  FontColor #0F172A
+}
+
+left to right direction
+
+' =========================
+' Classe principale
+' =========================
+class Utilisateur {
+  + id : int
+  + prenom : string
+  + nom : string
+  + email : string
+  + mot_de_passe : string
+  + telephone : string
+  + photo_profil : string
+  + role : string
+  + statut_compte : string
+  + created_at : datetime
+  + updated_at : datetime
+  --
+  + creerCompte() : void
+  + seConnecter(email : string, motDePasse : string) : void
+  + seDeconnecter() : void
+  + modifierProfil() : void
+  + reinitialiserMotDePasse(email : string) : void
+}
+
+' =========================
+' Rôle apprenant
+' =========================
+class Apprenant {
+  + id : int
+  + user_id : int
+  + domaines_cibles : array
+  + technologies : array
+  + date_inscription : datetime
+  --
+  + consulterEspacePersonnel() : void
+  + demanderRoleFormateur() : void
+  + soumettreDemandeFormateur() : void
+}
+
+' =========================
+' Rôle formateur
+' =========================
+class Formateur {
+  + id : int
+  + user_id : int
+  + specialite : string
+  + experience_annees : int
+  + langues : array
+  + statut : string
+  + date_validation : datetime
+  --
+  + accederEspaceFormateur() : void
+  + gererProfilFormateur() : void
+}
+
+' =========================
+' Rôle administrateur
+' =========================
+class Administrateur {
+  + id : int
+  + user_id : int
+  + niveau_acces : string
+  --
+  + attribuerRole(userId : int, role : string) : void
+  + modifierUtilisateur(userId : int) : void
+  + supprimerUtilisateur(userId : int) : void
+  + validerDemandeFormateur(demandeId : int) : void
+  + refuserDemandeFormateur(demandeId : int) : void
+}
+
+' =========================
+' Demande pour devenir formateur
+' =========================
+class DemandeFormateur {
+  + id : int
+  + user_id : int
+  + specialite : string
+  + experience : int
+  + motivation : text
+  + langues : array
+  + cv : string
+  + attestation : string
+  + statut : string
+  + created_at : datetime
+  + processed_at : datetime
+  --
+  + creerDemande() : void
+  + soumettre() : void
+  + accepter() : void
+  + refuser() : void
+}
+
+' =========================
+' Authentification
+' =========================
+class Authentification {
+  + email : string
+  + mot_de_passe : string
+  + token : string
+  --
+  + login(email : string, motDePasse : string) : string
+  + register(data : array) : Utilisateur
+  + logout() : void
+  + forgotPassword(email : string) : void
+  + resetPassword(token : string, password : string) : void
+}
+
+' =========================
+' Gestion des rôles
+' =========================
+class Role {
+  + id : int
+  + nom : string
+  + description : string
+  --
+  + affecterRole(userId : int, role : string) : void
+  + verifierRole(userId : int) : string
+}
+
+' =========================
+' Relations
+' =========================
+Utilisateur <|-- Apprenant
+Utilisateur <|-- Formateur
+Utilisateur <|-- Administrateur
+
+Utilisateur "1" --> "0..1" DemandeFormateur : soumet
+Administrateur "1" --> "0..*" DemandeFormateur : traite
+Administrateur "1" --> "0..*" Utilisateur : gère
+
+Utilisateur "1" --> "1" Authentification : utilise
+Utilisateur "1" --> "1" Role : possède
+Administrateur "1" --> "0..*" Role : attribue
+
+@enduml

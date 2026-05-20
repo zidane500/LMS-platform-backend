@@ -1,0 +1,72 @@
+@startuml
+title Diagramme de séquence - Notification de rappel d'une formation non terminée
+
+skinparam backgroundColor #FFFFFF
+skinparam sequence {
+  ArrowColor #334155
+  LifeLineBorderColor #64748B
+  LifeLineBackgroundColor #F8FAFC
+  ParticipantBorderColor #334155
+  ParticipantBackgroundColor #F1F5F9
+  ActorBorderColor #334155
+  ActorBackgroundColor #E0F2FE
+  DatabaseBorderColor #334155
+  DatabaseBackgroundColor #ECFDF5
+}
+
+autonumber
+
+actor "Système planifié" as Scheduler
+control "Laravel Scheduler" as LaravelScheduler
+control "Commande\nnotifications:rappel" as CommandeRappel
+database "Base de données" as DB
+control "NotificationService" as NotificationService
+boundary "Interface React\nNotificationBell" as Interface
+actor "Apprenant" as Apprenant
+
+== Déclenchement automatique ==
+
+Scheduler -> LaravelScheduler : exécuter la tâche planifiée
+LaravelScheduler -> CommandeRappel : lancer notifications:rappel
+
+== Vérification des formations ==
+
+CommandeRappel -> DB : récupérer les inscriptions
+DB --> CommandeRappel : liste des apprenants inscrits
+
+loop Pour chaque inscription
+    CommandeRappel -> DB : vérifier l'état de la formation
+    DB --> CommandeRappel : formation terminée ou non
+
+    alt Formation déjà terminée
+        CommandeRappel -> CommandeRappel : ignorer l'inscription
+    else Formation non terminée
+        CommandeRappel -> DB : vérifier dernière consultation
+        DB --> CommandeRappel : date de dernière consultation
+
+        alt Dernière consultation inférieure à 24h
+            CommandeRappel -> CommandeRappel : aucun rappel nécessaire
+        else Dernière consultation supérieure à 24h
+            CommandeRappel -> DB : vérifier si un rappel existe déjà
+            DB --> CommandeRappel : rappel existant ou non
+
+            alt Rappel déjà envoyé récemment
+                CommandeRappel -> CommandeRappel : éviter doublon
+            else Aucun rappel récent
+                CommandeRappel -> NotificationService : créer notification de rappel
+                NotificationService -> DB : enregistrer la notification
+                DB --> NotificationService : notification enregistrée
+                NotificationService --> CommandeRappel : confirmation
+            end
+        end
+    end
+end
+
+== Affichage côté apprenant ==
+
+Apprenant -> Interface : ouvrir la plateforme
+Interface -> DB : récupérer les notifications
+DB --> Interface : notifications disponibles
+Interface --> Apprenant : afficher le rappel de formation
+
+@enduml

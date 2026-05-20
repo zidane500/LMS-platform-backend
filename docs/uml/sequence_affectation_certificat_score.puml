@@ -1,0 +1,71 @@
+@startuml
+title Diagramme de séquence - Affectation automatique du certificat et du score
+
+skinparam backgroundColor #FFFFFF
+skinparam sequence {
+  ArrowColor #334155
+  LifeLineBorderColor #64748B
+  LifeLineBackgroundColor #F8FAFC
+  ParticipantBorderColor #334155
+  ParticipantBackgroundColor #F1F5F9
+  ActorBorderColor #334155
+  ActorBackgroundColor #E0F2FE
+  DatabaseBorderColor #334155
+  DatabaseBackgroundColor #ECFDF5
+}
+
+autonumber
+
+actor "Apprenant" as Apprenant
+boundary "Interface React\nQuiz / CourseDetail" as Interface
+control "QuizController" as QuizController
+control "ProgressionController" as ProgressionController
+control "CertificatService" as CertificatService
+database "Base de données\nPostgreSQL" as DB
+
+== Passage du quiz final ==
+
+Apprenant -> Interface : répondre au quiz final
+Apprenant -> Interface : cliquer sur Soumettre
+
+Interface -> QuizController : envoyer les réponses du quiz
+QuizController -> DB : récupérer les bonnes réponses
+DB --> QuizController : réponses correctes
+
+QuizController -> QuizController : calculer le score de l'apprenant
+
+QuizController -> DB : enregistrer la tentative et le score
+DB --> QuizController : score enregistré
+
+== Vérification de la progression ==
+
+QuizController -> ProgressionController : vérifier la progression de la formation
+ProgressionController -> DB : vérifier contenus terminés et quiz réussi
+DB --> ProgressionController : état de progression
+
+alt Formation non complétée ou score insuffisant
+    ProgressionController --> QuizController : certificat non autorisé
+    QuizController --> Interface : retourner score sans certificat
+    Interface --> Apprenant : afficher le score obtenu
+else Formation complétée et score validé
+    ProgressionController --> QuizController : certificat autorisé
+
+    == Génération du certificat ==
+
+    QuizController -> CertificatService : générer le certificat
+    CertificatService -> DB : vérifier certificat existant
+    DB --> CertificatService : certificat existant ou non
+
+    alt Certificat déjà existant
+        CertificatService --> QuizController : retourner certificat existant
+    else Nouveau certificat
+        CertificatService -> DB : enregistrer certificat avec score
+        DB --> CertificatService : certificat créé
+        CertificatService --> QuizController : nouveau certificat généré
+    end
+
+    QuizController --> Interface : retourner score + certificat
+    Interface --> Apprenant : afficher score et certificat obtenu
+end
+
+@enduml

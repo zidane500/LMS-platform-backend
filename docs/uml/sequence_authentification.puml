@@ -1,0 +1,52 @@
+@startuml
+title Diagramme de séquence - Authentification utilisateur
+
+skinparam backgroundColor #FFFFFF
+skinparam sequence {
+  ArrowColor #334155
+  LifeLineBorderColor #64748B
+  LifeLineBackgroundColor #F8FAFC
+  ParticipantBorderColor #334155
+  ParticipantBackgroundColor #F1F5F9
+  ActorBorderColor #334155
+  ActorBackgroundColor #E0F2FE
+  DatabaseBorderColor #334155
+  DatabaseBackgroundColor #ECFDF5
+}
+
+autonumber
+
+actor "Utilisateur" as Utilisateur
+boundary "Interface React\nLogin.tsx" as Interface
+control "AuthController" as AuthController
+entity "Modèle User" as UserModel
+database "Base de données\nPostgreSQL" as DB
+control "Laravel Sanctum" as Sanctum
+collections "LocalStorage" as LocalStorage
+
+loop Tant que l'utilisateur n'est pas authentifié
+    Utilisateur -> Interface : saisir email et mot de passe
+    Utilisateur -> Interface : cliquer sur le bouton Connexion
+    Interface -> Interface : contrôler les champs du formulaire
+    Interface -> AuthController : POST /api/login\n(email, password)
+    AuthController -> AuthController : valider les données reçues
+    AuthController -> UserModel : rechercherUtilisateurParEmail(email)
+    UserModel -> DB : SELECT * FROM users WHERE email = ?
+    DB --> UserModel : retourner utilisateur ou null
+    UserModel --> AuthController : résultat de la recherche
+    AuthController -> AuthController : vérifier le mot de passe
+
+    alt Identifiants incorrects
+        AuthController --> Interface : réponse 401\nIdentifiants invalides
+        Interface --> Utilisateur : afficher message d'erreur
+    else Identifiants corrects
+        AuthController -> Sanctum : créer un token d'accès
+        Sanctum --> AuthController : token généré
+        AuthController --> Interface : réponse 200\nuser + token
+        Interface -> LocalStorage : stocker auth_token
+        Interface -> LocalStorage : stocker auth_user
+        Interface --> Utilisateur : redirection vers le dashboard
+    end
+end
+
+@enduml

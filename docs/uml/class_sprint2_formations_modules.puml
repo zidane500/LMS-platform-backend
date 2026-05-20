@@ -1,0 +1,222 @@
+@startuml
+title Diagramme de classes - Sprint 2 : Gestion des formations (10 classes essentielles)
+
+skinparam backgroundColor #FFFFFF
+skinparam classAttributeIconSize 0
+skinparam linetype ortho
+skinparam dpi 160
+
+skinparam class {
+  BackgroundColor #E8F4F8
+  BorderColor #0078D4
+  ArrowColor #0078D4
+  FontColor #000000
+  FontSize 11
+}
+
+' ===================================================
+' 1. USER - Classe fondamentale
+' ===================================================
+class User {
+  + id : int
+  + prenom : string
+  + nom : string
+  + email : string
+  + role : enum [admin, formateur, apprenant]
+  --
+  + getAuthPassword() : string
+  + creerFormation() : Formation
+  + supprimerFormation(id) : void
+}
+
+' ===================================================
+' 2. FORMATEUR - Créateur de formations
+' ===================================================
+class Formateur {
+  + id : int
+  + user_id : int (FK)
+  + specialite : string
+  + experience_annees : int
+  --
+  + user() : User
+  + formations() : Collection
+  + creerFormation(titre) : Formation
+  + reorganiserModules(id, order) : void
+}
+
+' ===================================================
+' 3. APPRENANT - Consommateur de formations
+' ===================================================
+class Apprenant {
+  + id : int
+  + user_id : int (FK)
+  + niveau_experience : string
+  --
+  + user() : User
+  + formations() : Collection
+  + rechercherFormations(filtres) : Collection
+  + consulterFormationDetail(id) : array
+  + sinscrireFormation(id) : Inscription
+}
+
+' ===================================================
+' 4. FORMATION - Élément central du domaine
+' ===================================================
+class Formation {
+  + id : int
+  + formateur_id : int (FK)
+  + titre : string
+  + description : text
+  + categorie : string
+  + niveau : enum [debutant, intermediaire, avance]
+  + duree_estimee : int
+  + statut : enum [brouillon, publiee, archivee]
+  + is_coded : boolean
+  + code : string (nullable, unique)
+  --
+  + formateur() : Formateur
+  + modules() : Collection
+  + inscriptions() : Collection
+  + rechercher(filtres) : Collection
+  + filtrer(categorie, niveau) : Collection
+  + verifierAcces(userId) : boolean
+  + ajouterModule(titre) : ModuleFormation
+  + supprimerFormation() : void
+}
+
+' ===================================================
+' 5. MODULE FORMATION - Composant clé
+' ===================================================
+class ModuleFormation {
+  + id : int
+  + formation_id : int (FK)
+  + titre : string
+  + description : text
+  + duree : int
+  + ordre : int
+  --
+  + formation() : Formation
+  + contenus() : Collection
+  + quiz() : Quiz
+  + reordonnner(ordre) : void
+}
+
+' ===================================================
+' 6. CONTENU - Ressources d'apprentissage
+' ===================================================
+class Contenu {
+  + id : int
+  + module_id : int (FK)
+  + titre : string
+  + type : enum [video, texte, pdf]
+  + url : string
+  + ordre : int
+  --
+  + module() : ModuleFormation
+  + progressionApprenants() : Collection
+}
+
+' ===================================================
+' 7. QUIZ - Évaluation
+' ===================================================
+class Quiz {
+  + id : int
+  + module_id : int (FK)
+  + titre : string
+  + nombre_questions : int
+  + score_minimum : float
+  --
+  + module() : ModuleFormation
+  + questions() : Collection
+  + tentatives() : Collection
+}
+
+' ===================================================
+' 8. INSCRIPTION - Relation apprenant-formation
+' ===================================================
+class Inscription {
+  + id : int
+  + user_id : int (FK)
+  + formation_id : int (FK)
+  + statut : enum [en_cours, completee, abandonnee]
+  + date_inscription : datetime
+  + progression : float (0-100%)
+  --
+  + user() : User
+  + formation() : Formation
+  + obtenirProgression() : float
+}
+
+' ===================================================
+' 9. FORMATION ACCES CODE - Formations codées
+' ===================================================
+class FormationAccesCode {
+  + id : int
+  + user_id : int (FK)
+  + formation_id : int (FK)
+  + code : string
+  + accessed_at : datetime
+  + statut : enum [actif, expire, revoque]
+  --
+  + user() : User
+  + formation() : Formation
+  + validerCode(code) : boolean
+}
+
+' ===================================================
+' 10. NOTIFICATION - Notifications et alertes
+' ===================================================
+class Notification {
+  + id : int
+  + user_id : int (FK)
+  + type : enum [code_acces, formation, inscription]
+  + titre : string
+  + message : text
+  + lu : boolean
+  + created_at : datetime
+  --
+  + user() : User
+  + marquerCommeLue() : void
+}
+
+' ===================================================
+' RELATIONS ESSENTIELLES
+' ===================================================
+
+User "1" -- "0..1" Formateur : possède profil\nsi role=formateur
+User "1" -- "0..1" Apprenant : possède profil\nsi role=apprenant
+User "1" -- "0..*" Notification : reçoit
+
+Formateur "1" -- "0..*" Formation : crée
+
+Apprenant "1" -- "0..*" Inscription : s'inscrit
+Apprenant "1" -- "0..*" FormationAccesCode : accède via code
+
+Formation "1" *-- "1..*" ModuleFormation : organisée en
+ModuleFormation "1" *-- "1..*" Contenu : contient
+ModuleFormation "1" -- "0..1" Quiz : inclut
+
+Inscription "0..*" -- "1" Formation : s'inscrit à
+
+Formation "1" -- "0..*" FormationAccesCode : accordé via
+Formation "1" -- "0..*" Notification : génère code
+
+note right of Formation
+  USER STORIES SPRINT 2:
+  ✓ Créer une formation
+  ✓ Organiser en modules
+  ✓ Rechercher/filtrer formations
+  ✓ Consulter détails formation
+  ✓ Réorganiser modules
+  ✓ Supprimer formation
+  ✓ Formation codée + code accès
+end note
+
+note bottom of FormationAccesCode
+  Gestion formations codées:
+  • Code unique généré
+  • Notification envoyée
+  • Accès temporaire possible
+end note
+
+@enduml

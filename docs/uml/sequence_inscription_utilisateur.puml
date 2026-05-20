@@ -1,0 +1,65 @@
+@startuml
+title Diagramme de séquence - Inscription d'un nouvel utilisateur
+
+skinparam backgroundColor #FFFFFF
+skinparam sequence {
+  ArrowColor #334155
+  LifeLineBorderColor #64748B
+  LifeLineBackgroundColor #F8FAFC
+  ParticipantBorderColor #334155
+  ParticipantBackgroundColor #F1F5F9
+  ActorBorderColor #334155
+  ActorBackgroundColor #E0F2FE
+  DatabaseBorderColor #334155
+  DatabaseBackgroundColor #ECFDF5
+}
+
+autonumber
+
+actor "Nouvel utilisateur" as Utilisateur
+boundary "Interface React\nRegister.tsx" as Interface
+control "AuthController" as AuthController
+entity "Modèle User" as UserModel
+database "Base de données\nPostgreSQL" as DB
+control "Laravel Sanctum" as Sanctum
+collections "LocalStorage" as LocalStorage
+
+loop Tant que l'inscription n'est pas validée
+    Utilisateur -> Interface : saisir nom, prénom, email, mot de passe
+    Utilisateur -> Interface : choisir le rôle souhaité\n(apprenant ou formateur)
+    Utilisateur -> Interface : cliquer sur le bouton S'inscrire
+    Interface -> Interface : contrôler les champs du formulaire
+    Interface -> AuthController : POST /api/register\n(prenom, nom, email, password, role)
+    AuthController -> AuthController : valider les données reçues
+    AuthController -> UserModel : vérifier si l'email existe déjà
+    UserModel -> DB : SELECT * FROM users WHERE email = ?
+    DB --> UserModel : utilisateur existant ou null
+    UserModel --> AuthController : résultat de la recherche
+
+    alt Données invalides
+        AuthController --> Interface : réponse 422\nErreurs de validation
+        Interface --> Utilisateur : afficher les erreurs du formulaire
+    else Email déjà utilisé
+        AuthController --> Interface : réponse 422\nEmail déjà utilisé
+        Interface --> Utilisateur : afficher message d'erreur
+    else Inscription valide
+        AuthController -> AuthController : hacher le mot de passe
+        AuthController -> UserModel : créer nouvel utilisateur
+        UserModel -> DB : INSERT INTO users (...)
+        DB --> UserModel : utilisateur créé
+        UserModel --> AuthController : nouvel utilisateur
+        opt Rôle demandé = formateur
+            AuthController -> DB : enregistrer ou initialiser la demande formateur
+            DB --> AuthController : demande enregistrée
+        end
+
+        AuthController -> Sanctum : créer un token d'accès
+        Sanctum --> AuthController : token généré
+        AuthController --> Interface : réponse 201\nuser + token
+        Interface -> LocalStorage : stocker auth_token
+        Interface -> LocalStorage : stocker auth_user
+        Interface --> Utilisateur : redirection vers le dashboard
+    end
+end
+
+@enduml

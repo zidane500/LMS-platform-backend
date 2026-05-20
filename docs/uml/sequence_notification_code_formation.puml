@@ -1,0 +1,86 @@
+@startuml
+title Diagramme de séquence - Notification d'obtention du code d'une formation codée
+
+skinparam backgroundColor #FFFFFF
+skinparam sequence {
+  ArrowColor #334155
+  LifeLineBorderColor #64748B
+  LifeLineBackgroundColor #F8FAFC
+  ParticipantBorderColor #334155
+  ParticipantBackgroundColor #F1F5F9
+  ActorBorderColor #334155
+  ActorBackgroundColor #E0F2FE
+  DatabaseBorderColor #334155
+  DatabaseBackgroundColor #ECFDF5
+}
+
+autonumber
+
+actor "Apprenant" as Apprenant
+boundary "Interface React\nCourseDetail.tsx" as InterfaceApprenant
+control "FormationController" as FormationController
+database "Base de données" as DB
+control "NotificationService" as NotificationService
+boundary "NotificationBell" as NotificationBell
+actor "Administrateur / Formateur" as Responsable
+
+== Consultation d'une formation codée ==
+
+Apprenant -> InterfaceApprenant : ouvrir une formation codée
+InterfaceApprenant -> FormationController : demander l'accès à la formation
+FormationController -> DB : vérifier si la formation est codée
+DB --> FormationController : formation codée
+
+FormationController --> InterfaceApprenant : accès limité
+InterfaceApprenant --> Apprenant : afficher demande de code d'accès
+
+== Demande du code ==
+
+Apprenant -> InterfaceApprenant : demander le code de la formation
+InterfaceApprenant -> FormationController : envoyer la demande de code
+
+FormationController -> DB : enregistrer la demande d'accès
+DB --> FormationController : demande enregistrée
+
+FormationController -> NotificationService : notifier le responsable
+NotificationService -> DB : enregistrer notification pour admin/formateur
+DB --> NotificationService : notification enregistrée
+
+NotificationService -> NotificationBell : nouvelle notification
+NotificationBell --> Responsable : afficher demande de code
+
+== Attribution du code ==
+
+Responsable -> NotificationBell : consulter la demande
+Responsable -> NotificationBell : valider l'obtention du code
+
+NotificationBell -> FormationController : autoriser l'accès ou transmettre le code
+FormationController -> DB : enregistrer le code ou l'accès autorisé
+DB --> FormationController : accès/code enregistré
+
+FormationController -> NotificationService : notifier l'apprenant
+NotificationService -> DB : enregistrer notification d'obtention du code
+DB --> NotificationService : notification enregistrée
+
+NotificationService -> NotificationBell : nouvelle notification apprenant
+NotificationBell --> Apprenant : afficher "Code obtenu"
+
+== Utilisation du code ==
+
+Apprenant -> InterfaceApprenant : saisir le code reçu
+InterfaceApprenant -> FormationController : vérifier le code
+
+FormationController -> DB : vérifier le code de la formation
+DB --> FormationController : code valide ou invalide
+
+alt Code invalide
+    FormationController --> InterfaceApprenant : code incorrect
+    InterfaceApprenant --> Apprenant : afficher message d'erreur
+else Code valide
+    FormationController -> DB : autoriser l'accès à la formation
+    DB --> FormationController : accès accordé
+    FormationController --> InterfaceApprenant : accès autorisé
+    InterfaceApprenant --> Apprenant : afficher les contenus de la formation
+end
+
+@enduml

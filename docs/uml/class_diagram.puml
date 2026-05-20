@@ -1,0 +1,284 @@
+@startuml
+title Diagramme de classes - LMS
+skinparam classAttributeIconSize 0
+skinparam classFontStyle bold
+skinparam backgroundColor #FFFFFF
+
+class Apprenant {
+  + user_id
+  + domaines_cibles
+  + technologies
+}
+
+class Badge {
+  + code
+  + nom
+  + description
+  + icone
+  + condition
+}
+
+class BadgeUtilisateur {
+  + user_id
+  + badge_id
+  + formation_id
+  + obtenu_le
+}
+
+class Certificat {
+  + numero
+  + user_id
+  + formation_id
+  + moyenne
+  + mention
+  + emis_le
+}
+
+class ChoixReponse {
+  + question_id
+  + texte
+  + est_correct
+  + ordre
+}
+
+class Contenu {
+  + module_id
+  + titre
+  + type
+  + url
+  + chemin_fichier
+  + duree
+  + resume
+  + miniature
+  + ordre
+}
+
+class Demandeformateur {
+  + user_id
+  + admin_id
+  + specialite
+  + experience_annees
+  + motivation
+  + langues_enseignees
+  + chemin_cv
+  + chemin_attestation
+  + statut
+  + date_demande
+  + date_traitement
+}
+
+class Feedback {
+  + formation_id
+  + user_id
+  + note
+  + reponse_formateur
+  + repondu_le
+  + commentaire
+}
+
+class Formateur {
+  + user_id
+  + specialite
+  + experience_annees
+  + langues_enseignees
+}
+
+class Formation {
+  + formateur_id
+  + titre
+  + description
+  + categorie
+  + niveau
+  + duree_estimee
+  + prerequis
+  + miniature
+  + statut
+  + is_coded
+  + code
+}
+
+class FormationAccesCode {
+  + user_id
+  + formation_id
+  + accessed_at
+}
+
+class Inscription {
+  + user_id
+  + formation_id
+  + date_inscription
+}
+
+class Message {
+  + formation_id
+  + sender_id
+  + receiver_id
+  + contenu
+  + lu_formateur
+  + type
+  + media_url
+  + media_nom
+  + media_mime
+  + reply_to_id
+  + is_retracted
+}
+
+class MessageBlock {
+  + formation_id
+  + blocked_user_id
+  + blocked_by
+}
+
+class MessageReaction {
+  + message_id
+  + user_id
+  + emoji
+}
+
+class ModuleFormation {
+  + formation_id
+  + titre
+  + description
+  + duree
+  + ordre
+}
+
+class Notification {
+  + user_id
+  + type
+  + message
+  + lu
+}
+
+class ProgressionContenu {
+  + user_id
+  + contenu_id
+  + complete
+  + pourcentage
+  + derniere_consultation
+}
+
+class ProgressionFormation {
+  + user_id
+  + formation_id
+  + pourcentage_global
+  + modules_completes
+  + contenus_completes
+  + complete
+  + termine_le
+}
+
+class Question {
+  + quiz_id
+  + texte
+  + type
+  + points
+  + ordre
+  + correction_attendue
+}
+
+class Quiz {
+  + module_id
+  + titre
+  + description
+  + seuil_reussite
+  + duree_minutes
+  + nb_tentatives_max
+  + statut
+}
+
+class ReponseApprenant {
+  + tentative_id
+  + question_id
+  + choix_id
+  + reponse_texte
+  + est_correct
+  + score_ia
+  + feedback_ia
+  + points_forts
+  + points_amelioration
+  + points_obtenus
+}
+
+class TempsApprentissage {
+  + user_id
+  + formation_id
+  + duree_secondes
+}
+
+class TentativeQuiz {
+  + quiz_id
+  + user_id
+  + score
+  + score_max
+  + reussi
+  + duree_secondes
+  + termine_le
+}
+
+class User {
+  + prenom
+  + nom
+  + email
+  + mot_de_passe
+  + telephone
+  + date_naissance
+  + photo_profil
+  + langue_preferee
+  + role
+}
+
+Apprenant --> User : belongsTo
+Badge "*" -- "*" User : belongsToMany
+BadgeUtilisateur --> Badge : belongsTo
+BadgeUtilisateur --> User : belongsTo
+Certificat --> User : belongsTo
+Certificat --> Formation : belongsTo
+ChoixReponse --> Question : belongsTo
+Contenu --> ModuleFormation : belongsTo
+Contenu "1" --> "*" ProgressionContenu : hasMany
+Demandeformateur --> User : belongsTo
+Feedback --> User : belongsTo
+Feedback --> Formation : belongsTo
+Formateur --> User : belongsTo
+Formation --> User : belongsTo
+Formation "1" --> "*" ModuleFormation : hasMany
+Formation "1" --> "*" Inscription : hasMany
+Formation "1" --> "*" FormationAccesCode : hasMany
+FormationAccesCode --> User : belongsTo
+FormationAccesCode --> Formation : belongsTo
+Inscription --> User : belongsTo
+Inscription --> Formation : belongsTo
+Message --> User : belongsTo
+Message --> Formation : belongsTo
+Message "1" --> "*" MessageReaction : hasMany
+MessageReaction --> User : belongsTo
+MessageReaction --> Message : belongsTo
+ModuleFormation --> Formation : belongsTo
+ModuleFormation "1" --> "*" Contenu : hasMany
+ModuleFormation "1" --> "0..1" Quiz : hasOne
+Notification --> User : belongsTo
+ProgressionContenu --> User : belongsTo
+ProgressionContenu --> Contenu : belongsTo
+ProgressionFormation --> User : belongsTo
+ProgressionFormation --> Formation : belongsTo
+Question --> Quiz : belongsTo
+Question "1" --> "*" ChoixReponse : hasMany
+Quiz --> ModuleFormation : belongsTo
+Quiz "1" --> "*" Question : hasMany
+Quiz "1" --> "*" TentativeQuiz : hasMany
+ReponseApprenant --> TentativeQuiz : belongsTo
+ReponseApprenant --> Question : belongsTo
+ReponseApprenant --> ChoixReponse : belongsTo
+TempsApprentissage --> User : belongsTo
+TempsApprentissage --> Formation : belongsTo
+TentativeQuiz --> Quiz : belongsTo
+TentativeQuiz --> User : belongsTo
+TentativeQuiz "1" --> "*" ReponseApprenant : hasMany
+User "1" --> "0..1" Apprenant : hasOne
+User "1" --> "0..1" Formateur : hasOne
+User "1" --> "0..1" DemandeFormateur : hasOne
+User "1" --> "*" Formation : hasMany
+User "1" --> "*" Inscription : hasMany
+
+@enduml
