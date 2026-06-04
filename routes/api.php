@@ -220,23 +220,17 @@ Route::post('/test-glm-correction', function (Request $request, GlmCorrectionSer
 });
 
 
-Route::get('/test-ollama-config', function () {
-    return response()->json([
-        'base_url' => config('services.ollama.base_url'),
-        'model' => config('services.ollama.model'),
-        'has_api_key' => !empty(config('services.ollama.api_key')),
-        'api_key_prefix' => substr(config('services.ollama.api_key'), 0, 8),
-    ]);
-});
+
 
 
 Route::get('/certificats/verifier/{numero}', [CertificatController::class, 'verifier']);
 
 
     // ── Route de streaming vidéo avec Range support ──────────
-Route::get('/stream/{path}', function ($path) {
+// ✅ Après — inject Request directement
+Route::get('/stream/{path}', function (Request $request, string $path) {
     $fullPath = storage_path('app/public/' . urldecode($path));
-    
+
     if (!file_exists($fullPath)) {
         abort(404);
     }
@@ -252,9 +246,8 @@ Route::get('/stream/{path}', function ($path) {
         'Content-Length' => $fileSize,
     ];
 
-    // Gestion Range (seek vidéo)
-    if (request()->hasHeader('Range')) {
-        preg_match('/bytes=(\d+)-(\d*)/', request()->header('Range'), $matches);
+    if ($request->hasHeader('Range')) {
+        preg_match('/bytes=(\d+)-(\d*)/', $request->header('Range'), $matches);
         $start = (int) $matches[1];
         $end   = isset($matches[2]) && $matches[2] !== '' ? (int) $matches[2] : $fileSize - 1;
 
