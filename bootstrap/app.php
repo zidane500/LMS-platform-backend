@@ -24,4 +24,10 @@ return Application::configure(basePath: dirname(__DIR__))
         $exceptions->render(function (AuthenticationException $e, Request $request) {
             return response()->json(['message' => 'Non authentifié.'], 401);
         });
-    })->create();
+    })
+    ->withMiddleware(function (Middleware $middleware) {
+    $middleware->api(append: [
+        \App\Http\Middleware\SecurityHeaders::class,
+    ]);
+})->create();
+    

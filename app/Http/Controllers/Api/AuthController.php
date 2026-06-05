@@ -81,10 +81,17 @@ class AuthController extends Controller
     $user = User::where('email', $request->email)->first();
 
     if (!$user || !Hash::check($request->mot_de_passe, $user->mot_de_passe)) {
-        throw ValidationException::withMessages([
-            'email' => ['Email ou mot de passe incorrect.'],
-        ]);
-    }
+    Log::warning('Login échoué', [
+        'email' => $request->email,
+        'ip'    => $request->ip(),
+        'ua'    => $request->userAgent(),
+        'at'    => now()->toISOString(),
+    ]);
+
+    throw ValidationException::withMessages([
+        'email' => ['Email ou mot de passe incorrect.'],
+    ]);
+}
 
     $user->tokens()->delete();
 
@@ -99,7 +106,7 @@ class AuthController extends Controller
     // ─── LOGOUT ───────────────────────────────────────────
     public function logout(Request $request)
     {
-        $request->user()->currentAccessToken()->delete();
+        $request->user()->tokens()->delete();
 
         return response()->json([
             'message' => 'Déconnecté avec succès',
@@ -196,9 +203,13 @@ private function verifierTurnstile(Request $request): void
     $secret = env('CLOUDFLARE_TURNSTILE_SECRET');
 
     // En local seulement : autoriser le bypass pour les tests
-    if (app()->environment('local') && (!$token || $token === 'bypass')) {
-        return;
-    }
+    if (app()->environment('local', 'testing') && (!$token || $token === 'bypass')) {
+    return;
+}
+
+if (app()->environment('production') && (!$token || $token === 'bypass')) {
+    abort(422, 'Vérification de sécurité manquante.');
+}
 
     // Si le secret Cloudflare n'existe pas
     if (!$secret) {
