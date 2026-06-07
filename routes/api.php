@@ -20,222 +20,30 @@ use App\Http\Controllers\Api\TwoFactorController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
+// ═══════════════════════════════════════════════════════════
+//  ROUTES PUBLIQUES — accessibles sans token
+// ═══════════════════════════════════════════════════════════
 
-// ═══════════════════════════════════════════════════════════
-//  ROUTES PUBLIQUES
-// ═══════════════════════════════════════════════════════════
+// ── Authentification ──────────────────────────────────────
 Route::prefix('auth')->group(function () {
-    Route::post('/register', [AuthController::class, 'register'])->middleware('throttle:3,1');
-Route::post('/login', [AuthController::class, 'login'])->middleware('throttle:5,1'); 
-    Route::post('/forgot-password', [AuthController::class, 'forgotPassword']);
-    Route::post('/reset-password',  [AuthController::class, 'resetPassword']);
+    Route::post('/register',        [AuthController::class, 'register'])->middleware('throttle:3,1');
+    Route::post('/login',           [AuthController::class, 'login'])->middleware('throttle:5,1');
+    Route::post('/forgot-password', [AuthController::class, 'forgotPassword'])->middleware('throttle:3,1');
+    Route::post('/reset-password',  [AuthController::class, 'resetPassword'])->middleware('throttle:3,1');
 });
 
-Route::get('/formations',            [FormationController::class, 'index']);
-Route::get('/formations/categories', [FormationController::class, 'categories']);
-Route::get('/formations/instructors', [FormationController::class, 'instructors']);
-Route::get('/formations/{id}',       [FormationController::class, 'show']);
+// ── Formations publiques ──────────────────────────────────
+Route::get('/formations',                                          [FormationController::class, 'index']);
+Route::get('/formations/categories',                               [FormationController::class, 'categories']);
+Route::get('/formations/instructors',                              [FormationController::class, 'instructors']);
+Route::get('/formations/{id}',                                     [FormationController::class, 'show']);
+Route::get('/formations/{id}/feedbacks',                           [FeedbackController::class, 'index']);
+Route::get('/formations/{formationId}/modules/{moduleId}/contenus',[ContenuController::class, 'index']);
 
-
-// Contenus publics (avec progression si connecté)
-Route::get('/formations/{formationId}/modules/{moduleId}/contenus',
-    [ContenuController::class, 'index']);
-
+// ── Certificats publics ───────────────────────────────────
 Route::get('/certificats/verifier/{numero}', [CertificatController::class, 'verifier']);
 
-
-
-
-    
-
-// ═══════════════════════════════════════════════════════════
-//  ROUTES PROTÉGÉES
-// ═══════════════════════════════════════════════════════════
-Route::middleware('auth:sanctum')->group(function () {
-
-Route::post('/reports', [ReportController::class, 'store']);
-
-    Route::prefix('auth')->group(function () {
-        Route::post('/logout', [AuthController::class, 'logout']);
-        Route::get('/me',      [AuthController::class, 'me']);
-    });
-
-    Route::post('/users/profile', [UserController::class, 'updateProfile']);
-
-    Route::prefix('admin/users')->group(function () {
-        Route::get('/',        [UserController::class, 'index']);
-        Route::put('/{id}',    [UserController::class, 'update']);
-        Route::delete('/{id}', [UserController::class, 'destroy']);
-    });
-
-    // ── 2FA (admins uniquement) ───────────────────────────────
-Route::prefix('2fa')->group(function () {
-    Route::post('/setup',   [TwoFactorController::class, 'setup']);
-    Route::post('/enable',  [TwoFactorController::class, 'enable']);
-    Route::post('/disable', [TwoFactorController::class, 'disable']);
-});
-
-    Route::prefix('instructor-requests')->group(function () {
-        Route::post('/',                    [InstructorRequestController::class, 'store']);
-        Route::get('/my',                   [InstructorRequestController::class, 'myRequest']);
-        Route::get('/',                     [InstructorRequestController::class, 'index']);
-        Route::post('/{id}/process',        [InstructorRequestController::class, 'process']);
-        Route::get('/{id}/file/{type}',     [InstructorRequestController::class, 'downloadFile']);
-    });
-
-    Route::prefix('formations')->group(function () {
-        Route::post('/',            [FormationController::class, 'store']);
-        Route::put('/{id}',         [FormationController::class, 'update']);
-        Route::delete('/{id}',      [FormationController::class, 'destroy']);
-        Route::post('/{id}/enroll', [FormationController::class, 'enroll']);
-    });
-
-    Route::prefix('formations/{formationId}/modules')->group(function () {
-        Route::post('/',             [ModuleController::class, 'store']);
-        Route::put('/{moduleId}',    [ModuleController::class, 'update']);
-        Route::delete('/{moduleId}', [ModuleController::class, 'destroy']);
-        Route::post('/reorder',      [ModuleController::class, 'reorder']);
-    });
-
-    // ── US 3.1, 3.3, 3.4 — CRUD contenus ──────────────────
-    Route::prefix('formations/{formationId}/modules/{moduleId}/contenus')->group(function () {
-        Route::post('/',                      [ContenuController::class, 'store']);
-        Route::post('/{contenuId}',            [ContenuController::class, 'update']);
-        Route::delete('/{contenuId}',         [ContenuController::class, 'destroy']);
-        // US 3.2 — Marquer consulté (apprenant)
-        Route::post('/{contenuId}/consulter', [ContenuController::class, 'marquerConsulte']);
-    });
-
-    // ── EPIC 4 : Quiz ──────────────────────────────────────
-    Route::prefix('formations/{formationId}/modules/{moduleId}/quiz')->group(function () {
-        Route::get('/',              [QuizController::class, 'show']);       // Récupérer
-        Route::post('/',             [QuizController::class, 'store']);      // Créer
-        Route::put('/{quizId}',      [QuizController::class, 'update']);     // Modifier
-        Route::delete('/{quizId}',   [QuizController::class, 'destroy']);    // Supprimer
-        Route::post('/{quizId}/passer', [QuizController::class, 'passer']); // Passer
-        
-    });
-
-    // EPIC 5 : Progression et Badges
-    Route::prefix('progression')->group(function () {
-     Route::get('/progression/badges-progress', [ProgressionController::class, 'badgeProgression']);
-    Route::get('/',                        [ProgressionController::class, 'index']);
-    Route::get('/{formationId}',           [ProgressionController::class, 'show']);
-    Route::get('/{formationId}/formateur', [ProgressionController::class, 'formateur']);
-   
-    
-});
-
-// Epic 6 : certification
-    Route::prefix('certificats')->group(function () {
-    Route::get('/',                    [CertificatController::class, 'index']);
-    Route::post('/{formationId}',      [CertificatController::class, 'generer']);
-});
-
-// Notification
-Route::prefix('notifications')->group(function () {
-    Route::get('/',              [NotificationController::class, 'index']);
-    Route::get('/non-lues',      [NotificationController::class, 'nonLues']);
-    Route::post('/tout-lire',    [NotificationController::class, 'marquerToutLu']);
-    Route::post('/{id}/lire',    [NotificationController::class, 'marquerLu']);
-    Route::delete('/{id}',       [NotificationController::class, 'destroy']);
-});
-
-
-// ── Dashboard Charts ──────────────────────────────────────
-Route::prefix('dashboard')->group(function () {
-    Route::get('/mes-formations',          [DashboardController::class, 'mesFormations']);
-    Route::get('/inscriptions-semaine',    [DashboardController::class, 'inscriptionsParSemaine']);
-    Route::get('/apprenant/stats',         [DashboardController::class, 'apprenantStats']);
-});
-// ✅ Dans le groupe dashboard, ajoute :
-Route::get('/dashboard/users-stats',     [DashboardController::class, 'usersStats']);
-Route::get('/dashboard/top-formations',  [DashboardController::class, 'topFormations']);
-
-// ── Demandes formateur ────────────────────────────────────
-Route::get('/instructor-requests',             [InstructorRequestController::class, 'index']);
-Route::post('/instructor-requests',            [InstructorRequestController::class, 'store']);
-Route::get('/instructor-requests/my-request',  [InstructorRequestController::class, 'myRequest']);
-Route::post('/instructor-requests/{id}/process', [InstructorRequestController::class, 'process']);
-Route::delete('/instructor-requests/{id}',     [InstructorRequestController::class, 'destroy']);
-
-// Formations codées
-Route::post('/formations/{id}/verifier-code',  [FormationController::class, 'verifierCode']);
-Route::get('/formations/{id}/verifier-acces',  [FormationController::class, 'verifierAcces']);
-
-// Admin — toggle peut_coder
-Route::post('/admin/users/{id}/toggle-peut-coder', [UserController::class, 'togglePeutCoder']);
-
-// Temps apprentissage
-Route::get('/dashboard/temps-apprentissage',       [DashboardController::class, 'tempsApprentissage']);
-Route::post('/formations/{id}/temps',              [DashboardController::class, 'enregistrerTemps']);
-
-// Admin charts supplémentaires
-Route::get('/dashboard/formations-attention',      [DashboardController::class, 'formationsAttention']);
-Route::get('/dashboard/ia-stats',                  [DashboardController::class, 'iaStats']);
-Route::get('/dashboard/certifications-stats',      [DashboardController::class, 'certificationsStats']);
-Route::get('/dashboard/progression-par-categorie', [DashboardController::class, 'progressionParCategorie']);
-Route::get('/dashboard/certifications-detaillees', [DashboardController::class, 'certificationsDetaillees']);
-
-// ── Messages ──────────────────────────────────────────────
-Route::get('/messages/inbox',                        [MessageController::class, 'inbox']);
-Route::post('/messages/{id}/react',                  [MessageController::class, 'react']);
-Route::delete('/messages/{id}',                      [MessageController::class, 'destroy']);
-Route::get('/formations/{id}/messages',              [MessageController::class, 'index']);
-Route::post('/formations/{id}/messages',             [MessageController::class, 'store']);
-Route::post('/formations/{id}/messages/block',       [MessageController::class, 'blockUser']);
-Route::delete('/formations/{id}/messages/unblock',   [MessageController::class, 'unblockUser']);
-
-
-Route::post('/formations/{id}/feedbacks',          [FeedbackController::class, 'store']);
-Route::get('/formations/{id}/feedbacks/mon-feedback', [FeedbackController::class, 'monFeedback']);
-Route::delete('/feedbacks/{id}', [FeedbackController::class, 'destroy']);
-Route::put('/feedbacks/{id}', [FeedbackController::class, 'update']);
-Route::put('/feedbacks/{id}/repondre', [FeedbackController::class, 'repondre']);
-
-    // ── WebRTC Signaling ──────────────────────────────────────
-    Route::prefix('calls')->group(function () {
-    Route::post('/voice-offer',   [CallController::class, 'voiceOffer']);
-    Route::post('/video-offer',   [CallController::class, 'videoOffer']);
-    Route::post('/answer',        [CallController::class, 'answer']);
-    Route::post('/ice-candidate', [CallController::class, 'iceCandidate']);
-    Route::post('/end',           [CallController::class, 'endCall']);
-    Route::post('/reject',        [CallController::class, 'rejectCall']);
-});
-
-});
-
-Route::get('/formations/{id}/feedbacks',           [FeedbackController::class, 'index']);
-
-Route::post('/test-glm-correction', function (Request $request, GlmCorrectionService $glm) {
-    $data = $request->validate([
-        'question' => ['required', 'string'],
-        'reponse' => ['required', 'string'],
-        'correction_attendue' => ['nullable', 'string'],
-        'contexte' => ['nullable', 'string'],
-        'points_max' => ['nullable', 'integer'],
-    ]);
-
-    return response()->json(
-        $glm->corrigerReponseLibre(
-            $data['question'],
-            $data['reponse'],
-            $data['correction_attendue'] ?? null,
-            $data['contexte'] ?? '',
-            $data['points_max'] ?? 10
-        )
-    );
-});
-
-
-
-
-
-Route::get('/certificats/verifier/{numero}', [CertificatController::class, 'verifier']);
-
-
-    // ── Route de streaming vidéo avec Range support ──────────
-// ✅ Après — inject Request directement
+// ── Streaming vidéo ───────────────────────────────────────
 Route::get('/stream/{path}', function (Request $request, string $path) {
     $fullPath = storage_path('app/public/' . urldecode($path));
 
@@ -280,3 +88,171 @@ Route::get('/stream/{path}', function (Request $request, string $path) {
         readfile($fullPath);
     }, 200, $headers);
 })->where('path', '.*');
+
+// ═══════════════════════════════════════════════════════════
+//  ROUTES PROTÉGÉES — token Sanctum obligatoire
+// ═══════════════════════════════════════════════════════════
+Route::middleware('auth:sanctum')->group(function () {
+
+    // ── Auth ─────────────────────────────────────────────
+    Route::prefix('auth')->group(function () {
+        Route::post('/logout', [AuthController::class, 'logout']);
+        Route::get('/me',      [AuthController::class, 'me']);
+    });
+
+    // ── 2FA (admins uniquement) ───────────────────────────
+    Route::prefix('2fa')->group(function () {
+        Route::get('/status',  [TwoFactorController::class, 'status']);
+        Route::post('/setup',  [TwoFactorController::class, 'setup']);
+        Route::post('/enable', [TwoFactorController::class, 'enable']);
+        Route::post('/disable',[TwoFactorController::class, 'disable']);
+    });
+
+    // ── Profil utilisateur ────────────────────────────────
+    Route::post('/users/profile', [UserController::class, 'updateProfile']);
+
+    // ── Administration utilisateurs ───────────────────────
+    Route::prefix('admin/users')->group(function () {
+        Route::get('/',        [UserController::class, 'index']);
+        Route::put('/{id}',    [UserController::class, 'update']);
+        Route::delete('/{id}', [UserController::class, 'destroy']);
+    });
+    Route::post('/admin/users/{id}/toggle-peut-coder', [UserController::class, 'togglePeutCoder']);
+
+    // ── Demandes formateur ────────────────────────────────
+    Route::prefix('instructor-requests')->group(function () {
+        Route::get('/',              [InstructorRequestController::class, 'index']);
+        Route::post('/',             [InstructorRequestController::class, 'store']);
+        Route::get('/my',            [InstructorRequestController::class, 'myRequest']);
+        Route::get('/my-request',    [InstructorRequestController::class, 'myRequest']);
+        Route::post('/{id}/process', [InstructorRequestController::class, 'process']);
+        Route::get('/{id}/file/{type}', [InstructorRequestController::class, 'downloadFile']);
+        Route::delete('/{id}',       [InstructorRequestController::class, 'destroy']);
+    });
+
+    // ── Formations (CRUD) ─────────────────────────────────
+    Route::prefix('formations')->group(function () {
+        Route::post('/',            [FormationController::class, 'store']);
+        Route::put('/{id}',         [FormationController::class, 'update']);
+        Route::delete('/{id}',      [FormationController::class, 'destroy']);
+        Route::post('/{id}/enroll', [FormationController::class, 'enroll']);
+        Route::post('/{id}/verifier-code', [FormationController::class, 'verifierCode']);
+        Route::get('/{id}/verifier-acces', [FormationController::class, 'verifierAcces']);
+    });
+
+    // ── Modules ───────────────────────────────────────────
+    Route::prefix('formations/{formationId}/modules')->group(function () {
+        Route::post('/',             [ModuleController::class, 'store']);
+        Route::put('/{moduleId}',    [ModuleController::class, 'update']);
+        Route::delete('/{moduleId}', [ModuleController::class, 'destroy']);
+        Route::post('/reorder',      [ModuleController::class, 'reorder']);
+    });
+
+    // ── Contenus ──────────────────────────────────────────
+    Route::prefix('formations/{formationId}/modules/{moduleId}/contenus')->group(function () {
+        Route::post('/',                      [ContenuController::class, 'store']);
+        Route::post('/{contenuId}',           [ContenuController::class, 'update']);
+        Route::delete('/{contenuId}',         [ContenuController::class, 'destroy']);
+        Route::post('/{contenuId}/consulter', [ContenuController::class, 'marquerConsulte']);
+    });
+
+    // ── Quiz ──────────────────────────────────────────────
+    Route::prefix('formations/{formationId}/modules/{moduleId}/quiz')->group(function () {
+        Route::get('/',                 [QuizController::class, 'show']);
+        Route::post('/',                [QuizController::class, 'store']);
+        Route::put('/{quizId}',         [QuizController::class, 'update']);
+        Route::delete('/{quizId}',      [QuizController::class, 'destroy']);
+        Route::post('/{quizId}/passer', [QuizController::class, 'passer']);
+    });
+
+    // ── Progression & Badges ──────────────────────────────
+    Route::prefix('progression')->group(function () {
+        Route::get('/badges-progress', [ProgressionController::class, 'badgeProgression']);
+        Route::get('/',                [ProgressionController::class, 'index']);
+        Route::get('/{formationId}',   [ProgressionController::class, 'show']);
+        Route::get('/{formationId}/formateur', [ProgressionController::class, 'formateur']);
+    });
+
+    // ── Certificats ───────────────────────────────────────
+    Route::prefix('certificats')->group(function () {
+        Route::get('/',               [CertificatController::class, 'index']);
+        Route::post('/{formationId}', [CertificatController::class, 'generer']);
+    });
+
+    // ── Notifications ─────────────────────────────────────
+    Route::prefix('notifications')->group(function () {
+        Route::get('/',           [NotificationController::class, 'index']);
+        Route::get('/non-lues',   [NotificationController::class, 'nonLues']);
+        Route::post('/tout-lire', [NotificationController::class, 'marquerToutLu']);
+        Route::post('/{id}/lire', [NotificationController::class, 'marquerLu']);
+        Route::delete('/{id}',    [NotificationController::class, 'destroy']);
+    });
+
+    // ── Dashboard ─────────────────────────────────────────
+    Route::prefix('dashboard')->group(function () {
+        Route::get('/mes-formations',           [DashboardController::class, 'mesFormations']);
+        Route::get('/inscriptions-semaine',     [DashboardController::class, 'inscriptionsParSemaine']);
+        Route::get('/apprenant/stats',          [DashboardController::class, 'apprenantStats']);
+        Route::get('/users-stats',              [DashboardController::class, 'usersStats']);
+        Route::get('/top-formations',           [DashboardController::class, 'topFormations']);
+        Route::get('/temps-apprentissage',      [DashboardController::class, 'tempsApprentissage']);
+        Route::get('/formations-attention',     [DashboardController::class, 'formationsAttention']);
+        Route::get('/ia-stats',                 [DashboardController::class, 'iaStats']);
+        Route::get('/certifications-stats',     [DashboardController::class, 'certificationsStats']);
+        Route::get('/progression-par-categorie',[DashboardController::class, 'progressionParCategorie']);
+        Route::get('/certifications-detaillees',[DashboardController::class, 'certificationsDetaillees']);
+    });
+    Route::post('/formations/{id}/temps', [DashboardController::class, 'enregistrerTemps']);
+
+    // ── Messages ──────────────────────────────────────────
+    Route::get('/messages/inbox',                      [MessageController::class, 'inbox']);
+    Route::post('/messages/{id}/react',                [MessageController::class, 'react']);
+    Route::delete('/messages/{id}',                    [MessageController::class, 'destroy']);
+    Route::get('/formations/{id}/messages',            [MessageController::class, 'index']);
+    Route::post('/formations/{id}/messages',           [MessageController::class, 'store']);
+    Route::post('/formations/{id}/messages/block',     [MessageController::class, 'blockUser']);
+    Route::delete('/formations/{id}/messages/unblock', [MessageController::class, 'unblockUser']);
+
+    // ── Feedbacks ─────────────────────────────────────────
+    Route::post('/formations/{id}/feedbacks',             [FeedbackController::class, 'store']);
+    Route::get('/formations/{id}/feedbacks/mon-feedback', [FeedbackController::class, 'monFeedback']);
+    Route::delete('/feedbacks/{id}',                      [FeedbackController::class, 'destroy']);
+    Route::put('/feedbacks/{id}',                         [FeedbackController::class, 'update']);
+    Route::put('/feedbacks/{id}/repondre',                [FeedbackController::class, 'repondre']);
+
+    // ── Reports ───────────────────────────────────────────
+    Route::post('/reports', [ReportController::class, 'store']);
+
+    // ── WebRTC Signaling ──────────────────────────────────
+    Route::prefix('calls')->group(function () {
+        Route::post('/voice-offer',   [CallController::class, 'voiceOffer']);
+        Route::post('/video-offer',   [CallController::class, 'videoOffer']);
+        Route::post('/answer',        [CallController::class, 'answer']);
+        Route::post('/ice-candidate', [CallController::class, 'iceCandidate']);
+        Route::post('/end',           [CallController::class, 'endCall']);
+        Route::post('/reject',        [CallController::class, 'rejectCall']);
+    });
+
+    // ── GLM Correction (dev uniquement) ───────────────────
+    if (app()->environment('local')) {
+        Route::post('/test-glm-correction', function (Request $request, GlmCorrectionService $glm) {
+            $data = $request->validate([
+                'question'            => ['required', 'string'],
+                'reponse'             => ['required', 'string'],
+                'correction_attendue' => ['nullable', 'string'],
+                'contexte'            => ['nullable', 'string'],
+                'points_max'          => ['nullable', 'integer'],
+            ]);
+
+            return response()->json(
+                $glm->corrigerReponseLibre(
+                    $data['question'],
+                    $data['reponse'],
+                    $data['correction_attendue'] ?? null,
+                    $data['contexte'] ?? '',
+                    $data['points_max'] ?? 10
+                )
+            );
+        });
+    }
+});

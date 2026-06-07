@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use PragmaRX\Google2FA\Google2FA;
 use Illuminate\Support\Facades\Log;
+ use Illuminate\Support\Facades\Cache;
 
 class TwoFactorController extends Controller
 {
@@ -43,7 +44,10 @@ class TwoFactorController extends Controller
 }
 
     // ─── Confirmer et activer la 2FA ──────────────────────
-    public function enable(Request $request)
+   
+
+// ─── Confirmer et activer la 2FA ──────────────────────
+public function enable(Request $request)
 {
     $request->validate([
         'code' => 'required|string|size:6',
@@ -51,8 +55,15 @@ class TwoFactorController extends Controller
 
     $user      = $request->user();
     $google2fa = new Google2FA();
+    $cacheKey  = "2fa_used_code_{$user->id}_{$request->code}";
 
-    // ── Log pour déboguer ──────────────────────────────
+    // ── Bloquer la réutilisation du même code ──────────
+    if (Cache::has($cacheKey)) {
+        return response()->json([
+            'message' => 'Ce code a déjà été utilisé. Attendez le prochain.',
+        ], 422);
+    }
+
     Log::info('2FA enable attempt', [
         'user_id'       => $user->id,
         'secret_stored' => $user->google2fa_secret,
@@ -74,6 +85,9 @@ class TwoFactorController extends Controller
         ], 422);
     }
 
+    // ── Marquer le code comme utilisé pendant 2 minutes ──
+    Cache::put($cacheKey, true, now()->addMinutes(2));
+
     $user->google2fa_enabled = true;
     $user->save();
 
@@ -82,34 +96,53 @@ class TwoFactorController extends Controller
     ]);
 }
 
-    // ─── Désactiver la 2FA ────────────────────────────────
-    public function disable(Request $request)
-    {
-        $request->validate([
-            'code' => 'required|string|size:6',
-        ]);
+// ─── Désactiver la 2FA ────────────────────────────────
+public function disable(Request $request)
+{
+    $request->validate([
+        'code' => 'required|string|size:6',
+    ]);
 
-        $user     = $request->user();
-        $google2fa = new Google2FA();
+    $user      = $request->user();
+    $google2fa = new Google2FA();
+    $cacheKey  = "2fa_used_code_{$user->id}_{$request->code}";
 
-        $valid = $google2fa->verifyKey(
-            $user->google2fa_secret,
-            $request->code,
-            2
-        );
-
-        if (!$valid) {
-            return response()->json([
-                'message' => 'Code invalide.',
-            ], 422);
-        }
-
-        $user->google2fa_secret  = null;
-        $user->google2fa_enabled = false;
-        $user->save();
-
+    // ── Bloquer la réutilisation du même code ──────────
+    if (Cache::has($cacheKey)) {
         return response()->json([
-            'message' => '2FA désactivée.',
-        ]);
+            'message' => 'Ce code a déjà été utilisé. Attendez le prochain.',
+        ], 422);
     }
+
+    $valid = $google2fa->verifyKey(
+        $user->google2fa_secret,
+        $request->code,
+        4
+    );
+
+    if (!$valid) {
+        return response()->json([
+            'message' => 'Code invalide.',
+        ], 422);
+    }
+
+    // ── Marquer le code comme utilisé pendant 2 minutes ──
+    Cache::put($cacheKey, true, now()->addMinutes(2));
+
+    $user->google2fa_secret  = null;
+    $user->google2fa_enabled = false;
+    $user->save();
+
+    return response()->json([
+        'message' => '2FA désactivée.',
+    ]);
+}
+
+    // ─── Statut 2FA ───────────────────────────────────────────
+public function status(Request $request)
+{
+    return response()->json([
+        'enabled' => (bool) $request->user()->google2fa_enabled,
+    ]);
+}
 }
