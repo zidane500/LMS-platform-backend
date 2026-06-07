@@ -12,21 +12,32 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('users', function (Blueprint $table) {
-        $table->id();
-        $table->string('prenom', 100);
-        $table->string('nom', 100);
-        $table->string('email', 255)->unique();
-        $table->string('mot_de_passe', 255);
-        $table->string('telephone', 20)->nullable();
-        $table->date('date_naissance')->nullable();
-        $table->string('photo_profil', 500)->nullable();
-        $table->string('langue_preferee', 10)->default('fr');
-        $table->enum('role', ['apprenant', 'formateur', 'admin'])->default('apprenant'); 
-        $table->boolean('peut_coder')->default(false);
-        $table->timestamp('email_verified_at')->nullable();
-        $table->rememberToken();
-        $table->timestamps();
-    });
+            $table->id();
+
+            $table->string('prenom', 100);
+            $table->string('nom', 100);
+            $table->string('email', 255)->unique();
+            $table->string('mot_de_passe', 255);
+
+            $table->string('telephone', 20)->nullable();
+            $table->date('date_naissance')->nullable();
+            $table->string('photo_profil', 500)->nullable();
+
+            $table->string('langue_preferee', 10)->default('fr');
+
+            $table->enum('role', ['apprenant', 'formateur', 'admin'])
+                  ->default('apprenant');
+
+            $table->boolean('peut_coder')->default(false);
+
+            // ===== 2FA =====
+            $table->string('google2fa_secret')->nullable();
+            $table->boolean('google2fa_enabled')->default(false);
+
+            $table->timestamp('email_verified_at')->nullable();
+            $table->rememberToken();
+            $table->timestamps();
+        });
 
         Schema::create('password_reset_tokens', function (Blueprint $table) {
             $table->string('email')->primary();

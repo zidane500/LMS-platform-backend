@@ -13,6 +13,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Str;
+use PragmaRX\Google2FA\Google2FA;
 use Illuminate\Validation\ValidationException;
 use Illuminate\Validation\Rules\Password as PasswordRule;
 
@@ -93,14 +94,48 @@ class AuthController extends Controller
     ]);
 }
 
-    $user->tokens()->delete();
+    // Si l'utilisateur est admin et a la 2FA activée
+if ($user->role === 'admin' && $user->google2fa_enabled) {
+    $twoFactorCode = $request->input('two_factor_code');
 
-    $token = $user->createToken('auth_token')->plainTextToken;
+    // Pas encore de code fourni → on demande le code
+    if (!$twoFactorCode) {
+        return response()->json([
+            'requires_2fa' => true,
+            'message'      => 'Code 2FA requis.',
+        ], 200);
+    }
 
-    return response()->json([
-        'user'  => $this->formatUser($user),
-        'token' => $token,
-    ]);
+    // Vérification du code TOTP
+    $google2fa = new Google2FA();
+    $valid = $google2fa->verifyKey(
+        $user->google2fa_secret,
+        $twoFactorCode,
+        2 // tolérance de 2 fenêtres (±60 secondes)
+    );
+
+    if (!$valid) {
+        Log::warning('2FA échoué', [
+            'email' => $request->email,
+            'ip'    => $request->ip(),
+            'at'    => now()->toISOString(),
+        ]);
+
+        return response()->json([
+            'requires_2fa' => true,
+            'message'      => 'Code 2FA invalide ou expiré.',
+        ], 422);
+    }
+}
+
+$user->tokens()->delete();
+
+$token = $user->createToken('auth_token')->plainTextToken;
+
+return response()->json([
+    'user'  => $this->formatUser($user),
+    'token' => $token,
+]);
 }
 
     // ─── LOGOUT ───────────────────────────────────────────

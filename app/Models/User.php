@@ -23,6 +23,8 @@ class User extends Authenticatable
         'photo_profil',
         'langue_preferee',
         'role',
+        'google2fa_secret',
+        'google2fa_enabled',
     ];
 
     protected $hidden = [

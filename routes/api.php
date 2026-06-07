@@ -16,6 +16,7 @@ use App\Http\Controllers\Api\DashboardController;
 use App\Http\Controllers\Api\MessageController;
 use App\Http\Controllers\Api\FeedbackController;
 use App\Http\Controllers\Api\CallController;
+use App\Http\Controllers\Api\TwoFactorController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
@@ -24,8 +25,9 @@ use Illuminate\Support\Facades\Route;
 //  ROUTES PUBLIQUES
 // ═══════════════════════════════════════════════════════════
 Route::prefix('auth')->group(function () {
-    Route::post('/register',        [AuthController::class, 'register']);
-Route::post('/login', [AuthController::class, 'login'])->middleware('throttle:5,1');    Route::post('/forgot-password', [AuthController::class, 'forgotPassword']);
+    Route::post('/register', [AuthController::class, 'register'])->middleware('throttle:3,1');
+Route::post('/login', [AuthController::class, 'login'])->middleware('throttle:5,1'); 
+    Route::post('/forgot-password', [AuthController::class, 'forgotPassword']);
     Route::post('/reset-password',  [AuthController::class, 'resetPassword']);
 });
 
@@ -65,6 +67,13 @@ Route::post('/reports', [ReportController::class, 'store']);
         Route::put('/{id}',    [UserController::class, 'update']);
         Route::delete('/{id}', [UserController::class, 'destroy']);
     });
+
+    // ── 2FA (admins uniquement) ───────────────────────────────
+Route::prefix('2fa')->group(function () {
+    Route::post('/setup',   [TwoFactorController::class, 'setup']);
+    Route::post('/enable',  [TwoFactorController::class, 'enable']);
+    Route::post('/disable', [TwoFactorController::class, 'disable']);
+});
 
     Route::prefix('instructor-requests')->group(function () {
         Route::post('/',                    [InstructorRequestController::class, 'store']);
